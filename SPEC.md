@@ -1,62 +1,114 @@
-# Especificación NEXO v0.1
+# Especificación NEXO v0.3
 
 ## Modelo
 
-Un programa es una lista ordenada de nodos. Cada nodo:
+Un programa tiene funciones opcionales y un cuerpo principal. Cada cuerpo es
+una lista ordenada de nodos:
 
 ```
 [operación, [entradas], constante?]
 ```
 
-- `entradas` son índices de nodos **anteriores** (`0 <= ref < índice propio`).
-- El valor del programa es el del **último nodo**, que debe ser de tipo `draw`.
-- `caps` lista las capacidades que el programa usa. Sin `draw` no puede dibujar.
+```json
+{ "nexo": 2, "caps": ["draw"], "funcs": [{ "nodes": [...] }], "nodes": [...] }
+```
 
-## Tipos
+- `entradas` son índices de nodos **anteriores** del mismo cuerpo.
+- La salida de un cuerpo es su **último nodo**.
+- La salida del programa puede ser `draw` (un fotograma) o `num` (un resultado).
+- `caps` lista las capacidades que se usan: `draw` y/o `input`.
 
-- `num`: un número o un vector de números. Las operaciones se difunden
-  (broadcast): escalar con vector aplica el escalar a cada elemento; vector con
-  vector opera elemento a elemento hasta la longitud menor.
-- `draw`: lista de primitivas visuales.
+## Funciones
+
+- Dentro de una función, `arg` (constante = índice) lee un argumento.
+- `call` (entradas = argumentos, constante = índice de función) la invoca.
+- Una función **solo puede llamar a funciones con índice menor**, así que no hay recursión.
+- Al compilar, las llamadas se expanden en línea. La expansión está limitada a 65.536 nodos.
+- `prev` y `param` no se permiten dentro de funciones.
+
+## Estado
+
+`prev` (constante = índice de un nodo del cuerpo principal) devuelve el valor
+que ese nodo tuvo en el fotograma anterior, o 0 en el primero. Es la única
+referencia que puede apuntar hacia delante. No crea ciclos dentro de un
+fotograma, así que cada paso sigue terminando.
+
+## Aprendizaje
+
+- `param` (constante = valor inicial) es un escalar que el programa puede aprender.
+- `loss` (1 entrada) marca un valor a minimizar; al ejecutarse devuelve su entrada sin cambios. Si es un vector, se minimiza su suma. Si hay varios, se suman.
+- El aprendizaje ejecuta un fotograma, calcula por diferenciación automática (modo inverso) la derivada de la suma de los `loss` respecto a cada `param` y actualiza los `param` con Adam.
+- El gradiente no atraviesa `prev` (cada paso de aprendizaje mira un solo fotograma). `floor`, `hash`, `lt`, `gt` y `count` tienen derivada nula; `select` deriva por la rama elegida; `vmin`/`vmax` por el elemento elegido.
+- El resultado es el mismo programa con los nuevos valores escritos en sus `param`.
+
+## Formas
+
+| Forma | Significado |
+|---|---|
+| `s` | escalar |
+| `v` | vector (operaciones elemento a elemento, hasta la longitud menor) |
+| `p` | píxel: se evalúa en la GPU, una vez por píxel |
+| `d` | dibujo |
+
+Reglas: no se mezclan `v` y `p`; `loss` no acepta `p`; las reducciones, `scan`, `gather` y `pack` no
+aceptan `p`; `circle` y `line` no aceptan `p`; `shade` no acepta `v`.
 
 ## Operaciones
 
-| Op | Entradas | Constante | Salida | Notas |
-|---|---|---|---|---|
-| `const` | 0 | número | num | |
-| `time` | 0 | | num | segundos desde el inicio |
-| `range` | 0 | n (1..20000) | num | vector `[0, 1, …, n-1]` |
-| `add sub mul div mod min max pow` | 2 | | num | `div` y `mod` por 0 devuelven 0 |
-| `sin cos abs sqrt fract hash` | 1 | | num | `hash` da un pseudoaleatorio en [0,1) |
-| `circle` | 5: x, y, radio, tono, alfa | | draw | capacidad `draw` |
-| `line` | 6: x1, y1, x2, y2, tono, alfa | | draw | capacidad `draw` |
-| `layer` | n ≥ 1 de tipo draw | | draw | capacidad `draw` |
+| Op | Entradas | Constante | Notas |
+|---|---|---|---|
+| `const` | 0 | número | |
+| `time` · `frame` · `dt` | 0 | | segundos, nº de fotograma, paso de tiempo |
+| `range` | 0 | n (1..20000) | vector `[0 … n-1]` |
+| `input` | 0 | ranura (0..15) | datos del anfitrión; capacidad `input` |
+| `add sub mul div mod min max pow atan2 lt gt` | 2 | | `div`/`mod` por 0 → 0; `lt`/`gt` → 0 o 1 |
+| `sin cos abs sqrt fract hash floor exp` | 1 | | `hash` → pseudoaleatorio en [0,1) |
+| `select` | 3: cond, a, b | | `cond > 0 ? a : b` |
+| `mix` | 3: a, b, t | | `a + (b − a)·t` |
+| `sum vmin vmax count` | 1 | | reducen un vector a escalar |
+| `scan` | 1 | | suma acumulada |
+| `gather` | 2: v, índices | | `v[índice]` con índice circular |
+| `pack` | n escalares | | crea un vector |
+| `prev` | 0 | nodo | valor del fotograma anterior |
+| `call` / `arg` | n / 0 | función / índice | funciones |
+| `px` · `py` | 0 | | coordenadas del píxel |
+| `circle` | 5: x, y, radio, tono, alfa | | capacidad `draw` |
+| `line` | 6: x1, y1, x2, y2, tono, alfa | | capacidad `draw` |
+| `shade` | 3: tono, luz, alfa | | campo de color en la GPU; capacidad `draw` |
+| `param` | 0 | valor inicial | constante aprendible |
+| `loss` | 1 | | objetivo a minimizar |
+| `layer` | n dibujos | | apila dibujos en orden |
 
-Espacio de dibujo: de -1 a 1 en ambos ejes, origen en el centro. Tono en [0,1).
+Espacio de dibujo: de −1 a 1, origen en el centro, y hacia abajo. Tono en [0,1).
 
 ## Garantías del verificador
 
-1. Toda referencia apunta hacia atrás → no hay ciclos, la ejecución termina.
-2. Aridad y tipos correctos en cada nodo.
+1. Toda referencia apunta hacia atrás salvo `prev`, y no hay recursión: cada paso termina.
+2. Aridad, tipos (`num`/`draw`) y formas correctos.
 3. Ninguna operación usa una capacidad no declarada.
-4. Límites: como mucho 4096 nodos y vectores de 20000 elementos.
+4. Límites: 4.096 nodos por cuerpo, 256 funciones, 65.536 nodos expandidos, vectores de 20.000 y 64 valores enviados a cada shader.
 
-Además calcula:
-- **nivel** de cada nodo (profundidad de dependencias); nodos del mismo nivel son independientes.
-- **dinamismo**: qué nodos dependen de `time`. Los demás se evalúan una única vez.
+También calcula el **nivel** de cada nodo (los del mismo nivel son
+independientes) y qué nodos son **dinámicos**; el resto se evalúa una sola vez.
 
-## Codificación binaria
+## Codificación binaria (versión 2)
 
 ```
 4E 58            firma "NX"
-01               versión
-CC               capacidades (bit 0 = draw)
-varint           número de nodos
-por nodo:
-  u8             opcode (índice en la tabla de operaciones)
-  varint         nº de entradas (solo si la aridad es variable)
-  varint × k     entradas como distancia hacia atrás (índice - ref)
-  f32 LE         constante (solo const y range)
+02               versión
+CC               capacidades (bit 0 = draw, bit 1 = input)
+varint           número de funciones
+[cuerpo] × funciones
+cuerpo           programa principal
+
+cuerpo:
+  varint         número de nodos
+  por nodo:
+    u8           opcode (índice en la tabla de operaciones)
+    varint       nº de entradas (solo si la aridad es variable)
+    varint × k   entradas como distancia hacia atrás (índice − ref)
+    f32 LE       constante (solo las operaciones que la usan)
 ```
 
-Los varint son LEB128 sin signo. Las referencias relativas suelen caber en un byte.
+Los varint son LEB128 sin signo. Los opcodes nunca se reordenan: los
+programas de la versión 1 se siguen leyendo (no tienen sección de funciones).

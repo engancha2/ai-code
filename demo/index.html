@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Instrument+Sans:wght@400;600&family=Martian+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: una sola columna tipo "consola de laboratorio": lienzo arriba, mandos y bytes debajo. Mundo oscuro deliberado. */
+/* Layout: una columna tipo "consola de laboratorio": lienzo, mandos, evolución, cálculo y bytes. Mundo oscuro deliberado. */
 :root {
   --ink: #0c0e18;
   --panel: #151827;
@@ -12,6 +12,7 @@
   --muted: #8d8fa6;
   --amber: #f2b45a;
   --bad: #ff7a6b;
+  --good: #7fd6a4;
   --display: 'Unbounded', 'Arial Black', sans-serif;
   --body: 'Instrument Sans', system-ui, sans-serif;
   --mono: 'Martian Mono', ui-monospace, Menlo, monospace;
@@ -19,16 +20,19 @@
 }
 html, body { background: var(--ink); color: var(--fg); }
 body { font-family: var(--body); font-size: 15px; line-height: 1.55; }
-.wrap { max-width: 760px; margin: 0 auto; padding-block: 28px 56px;
+.wrap { max-width: 780px; margin: 0 auto; padding-block: 28px 56px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; gap: 22px; }
 header { display: grid; gap: 6px; }
 h1 { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 9vw, 56px); letter-spacing: .04em; margin: 0; line-height: 1; }
 h1 span { color: var(--amber); }
-.tag { color: var(--muted); max-width: 58ch; margin: 0; text-wrap: balance; }
+h1 small { font: 500 12px var(--mono); letter-spacing: .08em; color: var(--muted); vertical-align: top; margin-left: 10px; }
+.tag { color: var(--muted); max-width: 60ch; margin: 0; text-wrap: balance; }
 .stage { position: relative; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #05060c; }
-canvas { width: 100%; height: 100%; display: block; }
+canvas { display: block; }
+#cv { width: 100%; height: 100%; }
 .fps { position: absolute; right: 10px; top: 8px; font: 500 11px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.badge { position: absolute; left: 10px; top: 8px; font: 500 11px var(--mono); color: var(--amber); letter-spacing: .06em; text-transform: uppercase; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 button { font: 500 12px var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--fg);
   background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px 12px; cursor: pointer; }
@@ -41,26 +45,65 @@ button[aria-pressed="true"] { background: var(--amber); color: var(--ink); borde
 .stat b { font: 500 20px var(--mono); font-variant-numeric: tabular-nums; }
 .stat small { font: 400 10px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 @media (max-width: 480px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-h2 { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); margin: 0 0 8px; }
-.note { color: var(--muted); font-size: 13.5px; margin: 0 0 10px; max-width: 62ch; }
+section { display: grid; gap: 10px; }
+h2 { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--amber); margin: 0; }
+.note { color: var(--muted); font-size: 13.5px; margin: 0; max-width: 64ch; }
 pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px; overflow-x: auto; max-height: 260px; color: var(--fg); }
 .hex .op { color: var(--amber); }
 .log { font: 400 12px var(--mono); color: var(--muted); min-height: 1.6em; }
+.note code { font: 400 12px var(--mono); color: var(--fg); }
+button:disabled { opacity: .55; cursor: progress; }
 .log.bad { color: var(--bad); }
+
+.evo-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.meter { font: 500 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter b { color: var(--fg); font-weight: 500; }
+.meter b.up { color: var(--good); }
+.thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.thumbs button { padding: 0; aspect-ratio: 1; position: relative; overflow: hidden; background: #05060c; }
+.thumbs canvas { width: 100%; height: 100%; }
+.thumbs span { position: absolute; left: 6px; bottom: 4px; font: 500 10px var(--mono); color: var(--fg); text-shadow: 0 0 4px #000; }
+.thumbs button[aria-pressed="true"] { outline: 2px solid var(--amber); outline-offset: -2px; }
+
+.calc { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 640px) { .calc { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.card h3 { font-family: var(--display); font-weight: 500; font-size: 14px; margin: 0; }
+.card p { margin: 0; color: var(--muted); font-size: 13px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font: 400 12px var(--mono); font-variant-numeric: tabular-nums; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; text-align: right; color: var(--fg); }
+.big { font: 500 26px var(--mono); font-variant-numeric: tabular-nums; }
+.meta { font: 400 10.5px var(--mono); color: var(--muted); letter-spacing: .04em; }
+.data { font: 400 10.5px/1.6 var(--mono); color: var(--muted); word-break: break-word; }
+
+.lab { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; align-items: start; }
+@media (max-width: 640px) { .lab { grid-template-columns: 1fr; } }
+.pane { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #05060c; }
+.pane canvas { width: 100%; height: 100%; }
+.side { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.spark { width: 100%; height: 80px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.formula { font: 500 15px/1.5 var(--mono); color: var(--amber); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px; word-break: break-word; min-height: 3em; }
+.formula.done { color: var(--good); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { font: 400 11px var(--mono); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
 .why { display: grid; gap: 14px; }
 .why div { border-top: 1px solid var(--line); padding-top: 12px; }
 .why b { font-family: var(--display); font-weight: 500; font-size: 14px; letter-spacing: .02em; display: block; margin-bottom: 4px; }
-.why p { margin: 0; color: var(--muted); max-width: 62ch; }
-@media (prefers-reduced-motion: reduce) { .stage::after { content: 'Movimiento reducido: pulsa un programa para ver un fotograma.'; position: absolute; left: 10px; bottom: 8px; font: 11px var(--mono); color: var(--muted); } }
+.why p { margin: 0; color: var(--muted); max-width: 64ch; }
 </style>
 
 <div class="wrap">
   <header>
-    <h1>NEX<span>O</span></h1>
-    <p class="tag">Prototipo de un lenguaje escrito por IA para IA. Los programas no son texto: son grafos de flujo de datos que viajan en binario y se ejecutan vectorizados.</p>
+    <h1>NEX<span>O</span><small>v0.3</small></h1>
+    <p class="tag">Un lenguaje escrito por IA para IA. Los programas son grafos en binario que corren en CPU y GPU, aprenden por sí mismos y descubren fórmulas a partir de datos.</p>
   </header>
 
-  <div class="stage"><canvas id="cv" width="900" height="900"></canvas><div class="fps" id="fps"></div></div>
+  <div class="stage">
+    <canvas id="cv" width="900" height="900"></canvas>
+    <div class="badge" id="badge"></div>
+    <div class="fps" id="fps"></div>
+  </div>
 
   <div class="row" id="progs"></div>
   <div class="row">
@@ -69,7 +112,7 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
     <span class="spacer"></span>
     <button id="scaffold" aria-pressed="false">Andamio humano</button>
   </div>
-  <div class="log" id="log">Mutar cambia constantes al azar, como haría una IA explorando. Todo grafo válido se ejecuta.</div>
+  <div class="log" id="log">Partículas recuerda posiciones entre fotogramas. Aurora se calcula en la GPU. Mutar cambia el programa al azar y el verificador decide.</div>
 
   <div class="stats">
     <div class="stat"><b id="sNodes">0</b><small>nodos</small></div>
@@ -79,17 +122,91 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
   </div>
 
   <section>
+    <h2>La IA programa sola</h2>
+    <p class="note">Un algoritmo evolutivo escribe programas NEXO desde cero: los ejecuta, los puntúa por cobertura, estructura, movimiento y color, y cruza los mejores. Ningún humano toca el código.</p>
+    <div class="evo-head">
+      <button id="evoRun">Evolucionar</button>
+      <button id="evoNew">Nueva población</button>
+      <span class="meter">generación <b id="evoGen">0</b></span>
+      <span class="meter">mejor nota <b id="evoScore">0</b></span>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+
+  <section>
+    <h2>Programas que aprenden</h2>
+    <p class="note">La curva es un programa NEXO con 26 constantes marcadas como <code>param</code> y un objetivo marcado como <code>loss</code>: parecerse a la forma de puntos. NEXO calcula solo cómo cambia el error con cada constante y las ajusta. Nadie le dice cómo se dibuja un corazón.</p>
+    <div class="lab">
+      <div class="pane"><canvas id="lc" width="640" height="640"></canvas></div>
+      <div class="side">
+        <div class="row" id="shapes"></div>
+        <div class="row"><button id="lRun">Aprender</button><button id="lReset">Reiniciar</button></div>
+        <dl class="kv"><dt>paso</dt><dd id="lStep">0</dd><dt>error</dt><dd id="lLoss">—</dd></dl>
+        <canvas class="spark" id="lSpark" width="520" height="160" aria-label="Evolución del error en escala logarítmica"></canvas>
+        <p class="meta">Error en escala logarítmica. Cambia de forma a mitad de camino y verás la curva transformarse.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Descubre la fórmula</h2>
+    <p class="note">Le damos 60 puntos con algo de ruido y ninguna pista. La IA prueba estructuras por evolución en cuatro poblaciones a la vez y ajusta sus constantes por gradiente hasta dar con la fórmula que explica los datos.</p>
+    <div class="lab">
+      <div class="pane"><canvas id="sc" width="640" height="640"></canvas></div>
+      <div class="side">
+        <div class="row"><button id="sRun">Buscar fórmula</button></div>
+        <dl class="kv"><dt>generación</dt><dd id="sGen">0</dd><dt>error</dt><dd id="sErr">—</dd></dl>
+        <div class="formula" id="sFound">Pulsa «Buscar fórmula». Tarda unos segundos.</div>
+        <p class="meta">Fórmula con la que se generaron los datos, oculta para la IA: y = 2,5·sin(1,3·x) + 0,4·x</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cálculo general</h2>
+    <p class="note">Los mismos grafos resuelven problemas numéricos. Se acaban de ejecutar en tu navegador.</p>
+    <div class="calc">
+      <div class="card">
+        <h3>π por Montecarlo</h3>
+        <div class="big" id="piVal">…</div>
+        <p id="piErr"></p>
+        <div class="meta" id="piMeta"></div>
+      </div>
+      <div class="card">
+        <h3>Estadística</h3>
+        <dl class="kv" id="statKv"></dl>
+        <p class="data" id="statData"></p>
+        <div class="meta" id="statMeta"></div>
+      </div>
+      <div class="card">
+        <h3>Tiro con rozamiento</h3>
+        <dl class="kv" id="trajKv"></dl>
+        <p>20 m/s a 45°. Sin aire llegaría a 40,8 m.</p>
+        <div class="meta" id="trajMeta"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Úsalo desde tu IA</h2>
+    <p class="note">NEXO trae un servidor MCP. Conéctalo a Claude y podrá leer la especificación, escribir programas, verlos como imagen, hacerlos aprender y descubrir fórmulas.</p>
+    <pre>claude mcp add nexo -- node /ruta/a/ai-code/bin/nexo-mcp.js</pre>
+    <div class="chips"><span>nexo_spec</span><span>nexo_verify</span><span>nexo_run</span><span>nexo_learn</span><span>nexo_synthesize</span><span>nexo_evolve</span></div>
+  </section>
+
+  <section>
     <h2 id="viewTitle">Lo que ve la IA</h2>
-    <p class="note" id="viewNote">El programa completo, tal cual se transmite. Cada byte ámbar es una operación; el resto son referencias hacia atrás y constantes.</p>
+    <p class="note" id="viewNote"></p>
     <pre id="view" class="hex"></pre>
   </section>
 
   <section class="why">
     <h2>Por qué así</h2>
     <div><b>Sin parseo</b><p>No hay sintaxis que analizar. El binario se lee de corrido y el orden de los nodos ya es el orden de ejecución.</p></div>
-    <div><b>Termina siempre</b><p>Un nodo solo puede usar nodos anteriores, así que los bucles infinitos y los ciclos no se pueden escribir.</p></div>
-    <div><b>Rápido por diseño</b><p>Todo valor es un vector. Lo que no depende del tiempo se calcula una vez al cargar, y los nodos del mismo nivel pueden ejecutarse en paralelo.</p></div>
-    <div><b>Inyecciones imposibles</b><p>No existen strings ejecutables ni acceso al sistema. Un programa solo toca lo que declara en sus capacidades; ahora mismo, dibujar.</p></div>
+    <div><b>Termina siempre</b><p>Un nodo solo usa nodos anteriores y una función solo llama a funciones anteriores. No existen los bucles infinitos ni la recursión. La memoria entre fotogramas pasa por un único operador, prev.</p></div>
+    <div><b>CPU y GPU con el mismo lenguaje</b><p>El verificador sabe si cada valor es un escalar, un vector o un píxel. Lo que es por píxel se traduce solo a un shader de la GPU.</p></div>
+    <div><b>Aprende de serie</b><p>Todo programa es diferenciable. Basta marcar constantes como param y un objetivo como loss: el propio lenguaje calcula los gradientes y se ajusta. Y la evolución busca la estructura cuando no se conoce.</p></div>
+    <div><b>Inyecciones imposibles</b><p>No existen strings ejecutables ni acceso al sistema. Un programa solo toca lo que declara: dibujar o leer los datos que le pasas.</p></div>
   </section>
 </div>
 
@@ -99,15 +216,16 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
  *
  * Un programa NEXO no es texto: es un grafo de flujo de datos.
  *   - Cada nodo es [operación, [entradas], constante?]
- *   - Las entradas solo pueden apuntar a nodos ANTERIORES  → no hay ciclos,
- *     todo programa válido termina, y el orden ya es un orden topológico.
- *   - Todos los valores son vectores: una operación se aplica a miles de
- *     elementos a la vez (sin bucles explícitos).
- *   - No hay strings ejecutables, ni eval, ni acceso al sistema salvo las
- *     capacidades declaradas → las inyecciones no se pueden ni expresar.
- *
- * Forma canónica para máquinas: binario compacto (encode/decode).
- * Forma JSON: andamio para depurar mientras el proyecto madura.
+ *   - Las entradas solo apuntan a nodos ANTERIORES → no hay ciclos y todo
+ *     fotograma termina. El orden de los nodos ya es el orden de ejecución.
+ *   - Funciones: subgrafos que solo pueden llamar a funciones anteriores
+ *     (sin recursión) y que se expanden en línea al compilar.
+ *   - Estado: `prev` lee el valor que tuvo un nodo en el fotograma anterior.
+ *     Es la única forma de "memoria" y no rompe la garantía de terminación.
+ *   - Formas: escalar, vector (miles de elementos a la vez) o píxel (se
+ *     compila a la GPU). El verificador impide mezclarlas mal.
+ *   - Sin strings ejecutables ni acceso al sistema salvo capacidades
+ *     declaradas → las inyecciones no se pueden ni expresar.
  *
  * Licencia MIT.
  */
@@ -115,7 +233,9 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
   'use strict';
 
   // [nombre, aridad (-1 = variable), tipo de salida, usa constante, capacidad]
+  // El índice es el opcode binario: NUNCA se reordena, solo se añade al final.
   const OPS = [
+    // v0.1
     ['const', 0, 'num', true, null],
     ['time', 0, 'num', false, null],
     ['range', 0, 'num', true, null],
@@ -133,37 +253,143 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
     ['pow', 2, 'num', false, null],
     ['fract', 1, 'num', false, null],
     ['hash', 1, 'num', false, null],
-    ['circle', 5, 'draw', false, 'draw'], // x y radio tono alfa
-    ['line', 6, 'draw', false, 'draw'],   // x1 y1 x2 y2 tono alfa
+    ['circle', 5, 'draw', false, 'draw'],
+    ['line', 6, 'draw', false, 'draw'],
     ['layer', -1, 'draw', false, 'draw'],
+    // v0.2 — lógica y matemáticas
+    ['lt', 2, 'num', false, null],
+    ['gt', 2, 'num', false, null],
+    ['floor', 1, 'num', false, null],
+    ['select', 3, 'num', false, null],
+    ['mix', 3, 'num', false, null],
+    ['atan2', 2, 'num', false, null],
+    ['exp', 1, 'num', false, null],
+    // v0.2 — vectores
+    ['sum', 1, 'num', false, null],
+    ['vmin', 1, 'num', false, null],
+    ['vmax', 1, 'num', false, null],
+    ['count', 1, 'num', false, null],
+    ['scan', 1, 'num', false, null],
+    ['gather', 2, 'num', false, null],
+    ['pack', -1, 'num', false, null],
+    // v0.2 — tiempo y estado
+    ['frame', 0, 'num', false, null],
+    ['dt', 0, 'num', false, null],
+    ['prev', 0, 'num', true, null],
+    // v0.2 — datos de entrada
+    ['input', 0, 'num', true, 'input'],
+    // v0.2 — funciones
+    ['call', -1, 'num', true, null],
+    ['arg', 0, 'num', true, null],
+    // v0.2 — GPU
+    ['px', 0, 'num', false, null],
+    ['py', 0, 'num', false, null],
+    ['shade', 3, 'draw', false, 'draw'],
+    // v0.3 — aprendizaje
+    ['param', 0, 'num', true, null],  // constante que el programa puede aprender
+    ['loss', 1, 'num', false, null],  // objetivo a minimizar (identidad al ejecutar)
   ];
   const BY_NAME = Object.fromEntries(OPS.map((o, i) => [o[0], i]));
-  const CAPS = ['draw'];
-  const MAX_NODES = 4096;
-  const MAX_RANGE = 20000;
+  const CAPS = ['draw', 'input'];
+  const VERSION = 2;
+  const LIMITS = { nodes: 4096, funcs: 256, flat: 65536, range: 20000, slots: 16, uniforms: 64 };
+  const DYN_SOURCES = new Set(['time', 'frame', 'dt', 'prev', 'param']);
+  const REDUCE = new Set(['sum', 'vmin', 'vmax', 'count']);
 
-  // ---------- verificación ----------
-  // Devuelve un "plan": tipos, niveles paralelos y qué nodos dependen del tiempo.
-  function verify(prog) {
+  // ---------- expansión de funciones ----------
+  // Inserta en línea cada `call`. Como una función solo puede llamar a
+  // funciones anteriores, la expansión siempre termina.
+  function expand(prog) {
+    const errors = [];
+    if (!prog || !Array.isArray(prog.nodes)) return { errors: ['falta nodes'] };
+    const funcs = Array.isArray(prog.funcs) ? prog.funcs : [];
+    if (funcs.length > LIMITS.funcs) return { errors: ['demasiadas funciones'] };
+    const nargs = funcs.map((f) => {
+      let m = -1;
+      for (const nd of (f && f.nodes) || []) if (Array.isArray(nd) && nd[0] === 'arg') m = Math.max(m, nd[2]);
+      return m + 1;
+    });
+
+    const checkBody = (nodes, where, fi) => {
+      if (!Array.isArray(nodes) || nodes.length === 0) return errors.push(`${where}: vacío`);
+      if (nodes.length > LIMITS.nodes) return errors.push(`${where}: demasiados nodos`);
+      nodes.forEach((nd, j) => {
+        const e = (m) => errors.push(`${where}, nodo ${j}: ${m}`);
+        if (!Array.isArray(nd)) return e('no es un nodo');
+        const ins = Array.isArray(nd[1]) ? nd[1] : [];
+        for (const r of ins) if (!Number.isInteger(r) || r < 0 || r >= j) e(`referencia ${r} no apunta hacia atrás`);
+        if (nd[0] === 'call') {
+          const limit = fi === null ? funcs.length : fi;
+          if (!Number.isInteger(nd[2]) || nd[2] < 0 || nd[2] >= limit) {
+            e(fi === null ? `función ${nd[2]} no existe` : 'solo puede llamar a funciones anteriores (sin recursión)');
+          } else if (ins.length !== nargs[nd[2]]) e(`la función ${nd[2]} espera ${nargs[nd[2]]} argumentos`);
+        }
+        if (nd[0] === 'arg') {
+          if (fi === null) e('arg solo existe dentro de funciones');
+          else if (!Number.isInteger(nd[2]) || nd[2] < 0 || nd[2] >= LIMITS.slots) e('índice de argumento inválido');
+        }
+        if (nd[0] === 'prev' && fi !== null) e('prev no está permitido dentro de funciones');
+        if (nd[0] === 'param' && fi !== null) e('param no está permitido dentro de funciones; pásalo como argumento');
+      });
+    };
+    funcs.forEach((f, fi) => checkBody(f && f.nodes, `función ${fi}`, fi));
+    checkBody(prog.nodes, 'programa', null);
+    if (errors.length) return { errors };
+
+    const flat = [];
+    const emit = (nodes, argRefs) => {
+      const map = [];
+      nodes.forEach((nd, j) => {
+        const ins = (Array.isArray(nd[1]) ? nd[1] : []).map((r) => map[r]);
+        if (nd[0] === 'arg') { map[j] = argRefs[nd[2]]; return; }
+        if (nd[0] === 'call') { const m = emit(funcs[nd[2]].nodes, ins); map[j] = m[m.length - 1]; return; }
+        const c = [nd[0], ins];
+        if (nd.length > 2) c.push(nd[2]);
+        flat.push(c);
+        if (flat.length > LIMITS.flat) throw new Error('la expansión de funciones es demasiado grande');
+        map[j] = flat.length - 1;
+      });
+      return map;
+    };
+    let map;
+    try { map = emit(prog.nodes, []); } catch (e) { return { errors: [e.message] }; }
+    // `prev` apunta a un nodo del programa original: lo traducimos al grafo plano.
+    prog.nodes.forEach((nd, j) => {
+      if (nd[0] !== 'prev') return;
+      const t = nd[2];
+      flat[map[j]][2] = Number.isInteger(t) && t >= 0 && t < prog.nodes.length ? map[t] : -1;
+    });
+    return { errors: [], flat, map };
+  }
+
+  // ---------- verificación del grafo plano ----------
+  function check(nodes, caps) {
     const errors = [];
     const err = (i, m) => errors.push(`nodo ${i}: ${m}`);
-    if (!prog || !Array.isArray(prog.nodes)) return { ok: false, errors: ['falta nodes'] };
-    const caps = new Set(prog.caps || []);
-    const n = prog.nodes.length;
-    if (n === 0 || n > MAX_NODES) return { ok: false, errors: [`tamaño inválido (${n})`] };
-    const type = [], level = [], dyn = [];
+    const n = nodes.length;
+    const op = [], type = [], level = [], dyn = [];
+    const prevNodes = [];
     let cost = 0;
-    prog.nodes.forEach((node, i) => {
-      const op = BY_NAME[node[0]];
-      if (op === undefined) return err(i, `operación desconocida "${node[0]}"`);
-      const [name, arity, out, hasConst, cap] = OPS[op];
-      const ins = node[1] || [];
+    for (let i = 0; i < n; i++) {
+      const node = nodes[i];
+      type[i] = 'num'; level[i] = 0; dyn[i] = false;
+      const o = BY_NAME[node[0]];
+      if (o === undefined) { err(i, `operación desconocida "${node[0]}"`); continue; }
+      op[i] = o;
+      const [name, arity, out, hasConst, cap] = OPS[o];
+      const ins = node[1];
+      if (name === 'call' || name === 'arg') err(i, `${name} no puede quedar tras expandir`);
       if (arity >= 0 && ins.length !== arity) err(i, `${name} espera ${arity} entradas`);
       if (arity < 0 && ins.length === 0) err(i, `${name} necesita entradas`);
       if (cap && !caps.has(cap)) err(i, `requiere la capacidad "${cap}"`);
-      if (hasConst && typeof node[2] !== 'number') err(i, `${name} necesita una constante numérica`);
-      if (name === 'range' && !(node[2] >= 1 && node[2] <= MAX_RANGE)) err(i, `range fuera de límites`);
-      let lv = 0, d = name === 'time';
+      if (hasConst && !Number.isFinite(node[2])) err(i, `${name} necesita una constante numérica`);
+      if (name === 'range' && !(node[2] >= 1 && node[2] <= LIMITS.range)) err(i, 'range fuera de límites');
+      if (name === 'input' && !(Number.isInteger(node[2]) && node[2] >= 0 && node[2] < LIMITS.slots)) err(i, 'ranura de entrada inválida');
+      if (name === 'prev') {
+        if (!(Number.isInteger(node[2]) && node[2] >= 0 && node[2] < n)) err(i, 'prev apunta a un nodo inexistente');
+        else prevNodes.push(i);
+      }
+      let lv = 0, d = DYN_SOURCES.has(name);
       for (const r of ins) {
         if (!Number.isInteger(r) || r < 0 || r >= i) { err(i, `referencia ${r} no apunta hacia atrás`); continue; }
         const want = name === 'layer' ? 'draw' : 'num';
@@ -173,133 +399,566 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
       }
       type[i] = out; level[i] = lv; dyn[i] = d;
       cost += name === 'range' ? node[2] : 1;
-    });
-    if (!errors.length && type[n - 1] !== 'draw') errors.push('el último nodo debe producir dibujo');
-    const levels = errors.length ? 0 : Math.max(...level) + 1;
-    return { ok: !errors.length, errors, type, level, dyn, levels, cost,
-             staticCount: dyn.filter(x => !x).length };
+    }
+    for (const p of prevNodes) if (type[nodes[p][2]] !== 'num') err(p, 'prev solo puede recordar números');
+    if (errors.length) return { ok: false, errors };
+
+    // Formas: s = escalar, v = vector, p = píxel (GPU), d = dibujo.
+    // `prev` toma la forma de su destino, que puede estar más adelante:
+    // se resuelve por punto fijo.
+    const guess = {};
+    let shape, shapeErrors;
+    for (let iter = 0; iter < 8; iter++) {
+      ({ shape, shapeErrors } = shapes(nodes, op, guess));
+      let changed = false;
+      for (const p of prevNodes) {
+        const ts = shape[nodes[p][2]];
+        if (ts === 'p') { shapeErrors.push(`nodo ${p}: prev no puede recordar valores por píxel`); continue; }
+        if (ts === 'v' && guess[p] !== 'v') { guess[p] = 'v'; changed = true; }
+      }
+      if (!changed) break;
+    }
+    if (shapeErrors.length) return { ok: false, errors: shapeErrors };
+
+    return {
+      ok: true, errors: [], type, shape, level, dyn, cost,
+      levels: Math.max(...level) + 1,
+      staticCount: dyn.filter((x) => !x).length,
+      output: type[n - 1],
+    };
+  }
+
+  function shapes(nodes, op, guess) {
+    const shape = [], shapeErrors = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const name = OPS[op[i]][0];
+      const s = nodes[i][1].map((r) => shape[r]);
+      const bad = (m) => shapeErrors.push(`nodo ${i}: ${m}`);
+      switch (name) {
+        case 'const': case 'time': case 'frame': case 'dt': case 'param': shape[i] = 's'; break;
+        case 'loss':
+          if (s[0] === 'p') bad('loss no acepta valores por píxel');
+          shape[i] = s[0] === 'v' ? 'v' : 's'; break;
+        case 'range': case 'input': shape[i] = 'v'; break;
+        case 'px': case 'py': shape[i] = 'p'; break;
+        case 'prev': shape[i] = guess[i] || 's'; break;
+        case 'sum': case 'vmin': case 'vmax': case 'count':
+          if (s[0] === 'p') bad(`${name} no acepta valores por píxel`);
+          shape[i] = 's'; break;
+        case 'scan':
+          if (s[0] === 'p') bad('scan no acepta valores por píxel');
+          shape[i] = s[0] === 'v' ? 'v' : 's'; break;
+        case 'gather':
+          if (s.includes('p')) bad('gather no acepta valores por píxel');
+          shape[i] = s[1] === 'v' ? 'v' : 's'; break;
+        case 'pack':
+          if (s.some((x) => x !== 's')) bad('pack solo empaqueta escalares');
+          shape[i] = 'v'; break;
+        case 'circle': case 'line':
+          if (s.includes('p')) bad(`${name} no acepta valores por píxel; usa shade`);
+          shape[i] = 'd'; break;
+        case 'shade':
+          if (s.includes('v')) bad('shade acepta escalares o valores por píxel, no vectores');
+          shape[i] = 'd'; break;
+        case 'layer': shape[i] = 'd'; break;
+        default: {
+          const hasV = s.includes('v'), hasP = s.includes('p');
+          if (hasV && hasP) bad('no se pueden mezclar vectores y valores por píxel');
+          shape[i] = hasP ? 'p' : hasV ? 'v' : 's';
+        }
+      }
+    }
+    return { shape, shapeErrors };
+  }
+
+  // Punto de entrada: expande, verifica y devuelve el plan de ejecución.
+  function verify(prog) {
+    const e = expand(prog);
+    if (e.errors.length) return { ok: false, errors: e.errors };
+    const plan = check(e.flat, new Set(prog.caps || []));
+    plan.flat = e.flat;
+    plan.map = e.map;
+    return plan;
   }
 
   // ---------- binario ----------
-  // Cabecera "NX" + versión + capacidades (bitmask) + nº nodos (varint)
-  // Cada nodo: opcode (1 byte) [+ nº entradas si variable] + entradas como
-  // distancia hacia atrás (varint) [+ constante float32].
-  function encode(prog) {
+  // "NX" · versión · capacidades · nº funciones · [funciones] · programa
+  // Cada cuerpo: nº nodos (varint) y por nodo: opcode, [nº entradas si es
+  // variable], entradas como distancia hacia atrás (varint), [constante f32].
+  function encodeMap(prog) {
     const v = verify(prog);
     if (!v.ok) throw new Error(v.errors.join('; '));
-    const out = [];
+    const out = [], opAt = [];
     const varint = (x) => { do { let b = x & 127; x >>>= 7; if (x) b |= 128; out.push(b); } while (x); };
-    out.push(0x4e, 0x58, 1);
-    out.push(CAPS.reduce((m, c, i) => m | ((prog.caps || []).includes(c) ? 1 << i : 0), 0));
-    varint(prog.nodes.length);
     const f = new DataView(new ArrayBuffer(4));
-    prog.nodes.forEach((node, i) => {
-      const op = BY_NAME[node[0]];
-      out.push(op);
-      const ins = node[1] || [];
-      if (OPS[op][1] < 0) varint(ins.length);
-      for (const r of ins) varint(i - r);
-      if (OPS[op][3]) { f.setFloat32(0, node[2], true); for (let k = 0; k < 4; k++) out.push(f.getUint8(k)); }
-    });
-    return new Uint8Array(out);
+    const body = (nodes) => {
+      varint(nodes.length);
+      nodes.forEach((node, i) => {
+        const op = BY_NAME[node[0]];
+        opAt.push(out.length);
+        out.push(op);
+        const ins = node[1] || [];
+        if (OPS[op][1] < 0) varint(ins.length);
+        for (const r of ins) varint(i - r);
+        if (OPS[op][3]) { f.setFloat32(0, node[2], true); for (let k = 0; k < 4; k++) out.push(f.getUint8(k)); }
+      });
+    };
+    out.push(0x4e, 0x58, VERSION);
+    out.push(CAPS.reduce((m, c, i) => m | ((prog.caps || []).includes(c) ? 1 << i : 0), 0));
+    const funcs = prog.funcs || [];
+    varint(funcs.length);
+    funcs.forEach((fn) => body(fn.nodes));
+    body(prog.nodes);
+    return { bytes: new Uint8Array(out), opAt };
   }
+  const encode = (prog) => encodeMap(prog).bytes;
 
   function decode(bytes) {
     let p = 0;
-    const varint = () => { let x = 0, s = 0, b; do { b = bytes[p++]; x |= (b & 127) << s; s += 7; } while (b & 128); return x >>> 0; };
+    const need = (k) => { if (p + k > bytes.length) throw new Error('programa truncado'); };
+    const byte = () => { need(1); return bytes[p++]; };
+    const varint = () => { let x = 0, s = 0, b; do { b = byte(); x |= (b & 127) << s; s += 7; } while (b & 128 && s < 35); return x >>> 0; };
     if (bytes[0] !== 0x4e || bytes[1] !== 0x58) throw new Error('no es un programa NEXO');
-    p = 3;
-    const mask = bytes[p++];
+    p = 2;
+    const version = byte();
+    if (version !== 1 && version !== 2) throw new Error(`versión ${version} no soportada`);
+    const mask = byte();
     const caps = CAPS.filter((_, i) => mask & (1 << i));
-    const n = varint();
-    if (n > MAX_NODES) throw new Error('demasiados nodos');
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    const nodes = [];
-    for (let i = 0; i < n; i++) {
-      const op = bytes[p++];
-      if (!OPS[op]) throw new Error(`opcode ${op} desconocido`);
-      const [name, arity, , hasConst] = OPS[op];
-      const k = arity < 0 ? varint() : arity;
-      const ins = [];
-      for (let j = 0; j < k; j++) ins.push(i - varint());
-      const node = [name, ins];
-      if (hasConst) { node.push(dv.getFloat32(p, true)); p += 4; }
-      nodes.push(node);
+    const body = () => {
+      const n = varint();
+      if (n > LIMITS.nodes) throw new Error('demasiados nodos');
+      const nodes = [];
+      for (let i = 0; i < n; i++) {
+        const op = byte();
+        if (!OPS[op]) throw new Error(`opcode ${op} desconocido`);
+        const [name, arity, , hasConst] = OPS[op];
+        const k = arity < 0 ? varint() : arity;
+        const ins = [];
+        for (let j = 0; j < k; j++) ins.push(i - varint());
+        const node = [name, ins];
+        if (hasConst) { need(4); node.push(dv.getFloat32(p, true)); p += 4; }
+        nodes.push(node);
+      }
+      return nodes;
+    };
+    const funcs = [];
+    if (version >= 2) {
+      const nf = varint();
+      if (nf > LIMITS.funcs) throw new Error('demasiadas funciones');
+      for (let i = 0; i < nf; i++) funcs.push({ nodes: body() });
     }
-    return { nexo: 1, caps, nodes };
+    const prog = { nexo: version, caps, nodes: body() };
+    if (funcs.length) prog.funcs = funcs;
+    return prog;
   }
 
-  // ---------- ejecución vectorizada ----------
+  // ---------- ejecución vectorizada (CPU) ----------
   const isArr = (x) => typeof x !== 'number';
-  const len = (x) => (isArr(x) ? x.length : 1);
   const at = (x, k) => (isArr(x) ? x[k] : x);
-  function map1(a, f) {
-    if (!isArr(a)) return f(a);
-    const o = new Float64Array(a.length);
-    for (let k = 0; k < a.length; k++) o[k] = f(a[k]);
-    return o;
-  }
-  function map2(a, b, f) {
-    if (!isArr(a) && !isArr(b)) return f(a, b);
-    const n = isArr(a) && isArr(b) ? Math.min(a.length, b.length) : Math.max(len(a), len(b));
+  function mapN(args, f) {
+    let n = Infinity;
+    for (const x of args) if (isArr(x)) n = Math.min(n, x.length);
+    if (n === Infinity) return f(...args);
     const o = new Float64Array(n);
-    for (let k = 0; k < n; k++) o[k] = f(at(a, k), at(b, k));
+    if (args.length === 1) { const a = args[0]; for (let k = 0; k < n; k++) o[k] = f(a[k]); }
+    else if (args.length === 2) { const [a, b] = args; for (let k = 0; k < n; k++) o[k] = f(at(a, k), at(b, k)); }
+    else { const [a, b, c] = args; for (let k = 0; k < n; k++) o[k] = f(at(a, k), at(b, k), at(c, k)); }
     return o;
   }
   const fr = (x) => x - Math.floor(x);
   const NUM = {
     add: (a, b) => a + b, sub: (a, b) => a - b, mul: (a, b) => a * b,
-    div: (a, b) => (b === 0 ? 0 : a / b), mod: (a, b) => (b === 0 ? 0 : ((a % b) + b) % b),
+    div: (a, b) => (b === 0 ? 0 : a / b), mod: (a, b) => (b === 0 ? 0 : a - b * Math.floor(a / b)),
     min: Math.min, max: Math.max, pow: (a, b) => Math.pow(Math.abs(a), b),
     sin: Math.sin, cos: Math.cos, abs: Math.abs, sqrt: (a) => Math.sqrt(Math.abs(a)),
     fract: fr, hash: (a) => fr(Math.sin(a * 12.9898 + 78.233) * 43758.5453),
+    lt: (a, b) => (a < b ? 1 : 0), gt: (a, b) => (a > b ? 1 : 0), floor: Math.floor,
+    select: (c, a, b) => (c > 0 ? a : b), mix: (a, b, t) => a + (b - a) * t,
+    atan2: Math.atan2, exp: Math.exp,
   };
+  function reduce(name, a) {
+    if (!isArr(a)) return name === 'count' ? 1 : a;
+    if (name === 'count') return a.length;
+    if (a.length === 0) return 0;
+    let r = name === 'sum' ? 0 : a[0];
+    for (let k = 0; k < a.length; k++) r = name === 'sum' ? r + a[k] : name === 'vmin' ? Math.min(r, a[k]) : Math.max(r, a[k]);
+    return r;
+  }
+  const toVec = (x) => (x === undefined ? new Float64Array(0) : typeof x === 'number' ? Float64Array.of(x) : Float64Array.from(x));
 
-  // Compila: verifica una vez, precalcula todo lo que no depende del tiempo.
-  function compile(prog) {
+  function compile(prog, opts = {}) {
     const plan = verify(prog);
     if (!plan.ok) throw new Error(plan.errors.join('\n'));
-    const nodes = prog.nodes;
-    const vals = new Array(nodes.length);
-    const evalNode = (i, t) => {
+    const nodes = plan.flat, n = nodes.length, shape = plan.shape;
+    const inputs = opts.inputs || [];
+    const vals = new Array(n);
+    const prevStore = new Map();
+    const prevTargets = [...new Set(nodes.filter((nd) => nd[0] === 'prev').map((nd) => nd[2]))];
+    const shaders = {};
+    nodes.forEach((nd, i) => { if (nd[0] === 'shade') shaders[i] = glsl(nodes, shape, i); });
+    let T = 0, DT = 1 / 60, F = 0;
+
+    const evalNode = (i) => {
       const [name, ins, c] = nodes[i];
       const a = ins.map((r) => vals[r]);
       switch (name) {
         case 'const': return c;
-        case 'time': return t;
+        case 'time': return T;
+        case 'frame': return F;
+        case 'dt': return DT;
         case 'range': { const o = new Float64Array(c); for (let k = 0; k < c; k++) o[k] = k; return o; }
+        case 'input': return toVec(inputs[c]);
+        case 'prev': return prevStore.has(c) ? prevStore.get(c) : 0;
+        case 'sum': case 'vmin': case 'vmax': case 'count': return reduce(name, a[0]);
+        case 'scan': {
+          if (!isArr(a[0])) return a[0];
+          const o = new Float64Array(a[0].length); let acc = 0;
+          for (let k = 0; k < o.length; k++) { acc += a[0][k]; o[k] = acc; }
+          return o;
+        }
+        case 'gather': {
+          const v = a[0];
+          if (!isArr(v)) return mapN([a[1]], () => v);
+          const m = v.length;
+          return mapN([a[1]], (x) => (m ? v[((Math.floor(x) % m) + m) % m] : 0));
+        }
+        case 'pack': return Float64Array.from(a);
         case 'circle': return [{ kind: 'c', a }];
         case 'line': return [{ kind: 'l', a }];
         case 'layer': return a.flat();
-        default: return a.length === 1 ? map1(a[0], NUM[name]) : map2(a[0], a[1], NUM[name]);
+        case 'shade': {
+          const s = shaders[i];
+          const u = Float32Array.from(s.uniforms.map((r) => vals[r]));
+          return [{ kind: 'f', src: s.src, u, eval: (PX, PY) => fieldCPU(i, u, PX, PY) }];
+        }
+        case 'param': return paramVals.get(i);
+        case 'loss': return a[0];
+        default: return mapN(a, NUM[name]);
       }
     };
-    for (let i = 0; i < nodes.length; i++) if (!plan.dyn[i]) vals[i] = evalNode(i, 0);
+
+    // Evalúa en la CPU el campo de un `shade` para unas coordenadas dadas
+    // (mismo resultado que la GPU; sirve para dibujar sin navegador).
+    const fieldCPU = (root, u, PX, PY) => {
+      const s = shaders[root], local = new Map();
+      const get = (r) => {
+        if (shape[r] === 'p') return local.get(r);
+        if (nodes[r][0] === 'const') return nodes[r][2];
+        return u[s.uidx.get(r)];
+      };
+      for (const j of s.pixelNodes) {
+        const [name, ins] = nodes[j];
+        local.set(j, name === 'px' ? PX : name === 'py' ? PY : mapN(ins.map(get), NUM[name]));
+      }
+      return nodes[root][1].map(get);
+    };
+
+    // Parámetros aprendibles y objetivos.
+    const paramIds = [], lossIds = [];
+    const paramVals = new Map();
+    nodes.forEach((nd, i) => {
+      if (nd[0] === 'param') { paramIds.push(i); paramVals.set(i, nd[2]); }
+      if (nd[0] === 'loss') lossIds.push(i);
+    });
+    // needs[i]: el nodo depende de algún parámetro (solo por ahí fluye el gradiente).
+    const needs = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) needs[i] = nodes[i][0] === 'param' || nodes[i][1].some((r) => needs[r]);
+
+    for (let i = 0; i < n; i++) if (!plan.dyn[i] && shape[i] !== 'p') vals[i] = evalNode(i);
     const dynIdx = [];
-    for (let i = 0; i < nodes.length; i++) if (plan.dyn[i]) dynIdx.push(i);
+    for (let i = 0; i < n; i++) if (plan.dyn[i] && shape[i] !== 'p') dynIdx.push(i);
+
+    // ---------- diferenciación automática (modo inverso) ----------
+    function backward() {
+      const G = new Array(n);
+      const acc = (r, c) => {
+        if (!needs[r]) return;
+        const v = vals[r];
+        if (!isArr(v)) { G[r] = (G[r] || 0) + (isArr(c) ? sumArr(c) : c); return; }
+        let cur = G[r];
+        if (!cur) { cur = new Float64Array(v.length); G[r] = cur; }
+        if (isArr(c)) { const m = Math.min(c.length, v.length); for (let k = 0; k < m; k++) cur[k] += c[k]; }
+        else for (let k = 0; k < v.length; k++) cur[k] += c;
+      };
+      let loss = 0;
+      for (const i of lossIds) {
+        const v = vals[i];
+        loss += isArr(v) ? sumArr(v) : v;
+        acc(i, 1);
+      }
+      for (let i = n - 1; i >= 0; i--) {
+        const g = G[i];
+        if (g === undefined || !needs[i]) continue;
+        const [name, ins] = nodes[i];
+        const a = ins.map((r) => vals[r]), out = vals[i];
+        const to = (k, c) => acc(ins[k], c);
+        const M = mapN;
+        switch (name) {
+          case 'add': to(0, g); to(1, g); break;
+          case 'sub': to(0, g); to(1, M([g], (x) => -x)); break;
+          case 'mul': to(0, M([g, a[1]], (x, b) => x * b)); to(1, M([g, a[0]], (x, p) => x * p)); break;
+          case 'div':
+            to(0, M([g, a[1]], (x, b) => (b === 0 ? 0 : x / b)));
+            to(1, M([g, a[0], a[1]], (x, p, b) => (b === 0 ? 0 : (-x * p) / (b * b)))); break;
+          case 'mod': to(0, g); to(1, M([g, a[0], a[1]], (x, p, b) => (b === 0 ? 0 : -x * Math.floor(p / b)))); break;
+          case 'min': to(0, M([g, a[0], a[1]], (x, p, q) => (p <= q ? x : 0))); to(1, M([g, a[0], a[1]], (x, p, q) => (p <= q ? 0 : x))); break;
+          case 'max': to(0, M([g, a[0], a[1]], (x, p, q) => (p >= q ? x : 0))); to(1, M([g, a[0], a[1]], (x, p, q) => (p >= q ? 0 : x))); break;
+          case 'pow':
+            to(0, M([g, a[0], a[1]], (x, p, e) => (p === 0 ? 0 : x * e * Math.pow(Math.abs(p), e - 1) * Math.sign(p))));
+            to(1, M([g, a[0], out], (x, p, o) => (p === 0 ? 0 : x * o * Math.log(Math.abs(p))))); break;
+          case 'sin': to(0, M([g, a[0]], (x, p) => x * Math.cos(p))); break;
+          case 'cos': to(0, M([g, a[0]], (x, p) => -x * Math.sin(p))); break;
+          case 'abs': to(0, M([g, a[0]], (x, p) => x * Math.sign(p))); break;
+          case 'sqrt': to(0, M([g, a[0]], (x, p) => (p === 0 ? 0 : (x * Math.sign(p)) / (2 * Math.sqrt(Math.abs(p)))))); break;
+          case 'exp': to(0, M([g, out], (x, o) => x * o)); break;
+          case 'fract': case 'loss': to(0, g); break;
+          case 'atan2':
+            to(0, M([g, a[0], a[1]], (x, p, q) => { const d = p * p + q * q; return d === 0 ? 0 : (x * q) / d; }));
+            to(1, M([g, a[0], a[1]], (x, p, q) => { const d = p * p + q * q; return d === 0 ? 0 : (-x * p) / d; })); break;
+          case 'select': to(1, M([g, a[0]], (x, c) => (c > 0 ? x : 0))); to(2, M([g, a[0]], (x, c) => (c > 0 ? 0 : x))); break;
+          case 'mix':
+            to(0, M([g, a[2]], (x, t) => x * (1 - t))); to(1, M([g, a[2]], (x, t) => x * t));
+            to(2, M([g, a[0], a[1]], (x, p, q) => x * (q - p))); break;
+          case 'sum': to(0, g); break;
+          case 'vmin': case 'vmax': {
+            if (!isArr(a[0])) { to(0, g); break; }
+            let best = 0;
+            for (let k = 1; k < a[0].length; k++) if (name === 'vmin' ? a[0][k] < a[0][best] : a[0][k] > a[0][best]) best = k;
+            const c = new Float64Array(a[0].length); c[best] = g; to(0, c); break;
+          }
+          case 'scan': {
+            if (!isArr(a[0])) { to(0, g); break; }
+            const c = new Float64Array(a[0].length); let s = 0;
+            for (let k = c.length - 1; k >= 0; k--) { s += at(g, k); c[k] = s; }
+            to(0, c); break;
+          }
+          case 'gather': {
+            const v = a[0];
+            if (!isArr(v)) { to(0, isArr(g) ? sumArr(g) : g); break; }
+            const m = v.length, c = new Float64Array(m), idx = a[1], L = isArr(idx) ? idx.length : 1;
+            if (m) for (let k = 0; k < L; k++) c[((Math.floor(at(idx, k)) % m) + m) % m] += at(g, k);
+            to(0, c); break;
+          }
+          case 'pack': ins.forEach((r, k) => acc(r, at(g, k))); break;
+          default: break; // floor, hash, lt, gt, count y hojas: gradiente nulo
+        }
+      }
+      return { loss, grads: paramIds.map((i) => (G[i] === undefined ? 0 : G[i])) };
+    }
+
     return {
-      plan,
-      frame(t) { for (const i of dynIdx) vals[i] = evalNode(i, t); return vals[nodes.length - 1]; },
+      plan, shaders, paramIds, lossIds,
+      frame(t, dt = 1 / 60) {
+        T = t; DT = dt;
+        for (const i of dynIdx) vals[i] = evalNode(i);
+        for (const tg of prevTargets) prevStore.set(tg, vals[tg]);
+        F++;
+        return vals[n - 1];
+      },
+      run(steps, dt = 1 / 60) {
+        let out;
+        for (let k = 0; k < steps; k++) out = this.frame(k * dt, dt);
+        return out;
+      },
+      backward,
+      // Valor actual de los objetivos (tras el último fotograma).
+      lossValue() { let s = 0; for (const i of lossIds) s += isArr(vals[i]) ? sumArr(vals[i]) : vals[i]; return s; },
+      getParams() { return paramIds.map((i) => paramVals.get(i)); },
+      setParams(values) { paramIds.forEach((i, k) => { if (Number.isFinite(values[k])) paramVals.set(i, values[k]); }); },
+      // Devuelve el programa original con los valores aprendidos escritos en sus `param`.
+      exportProgram() {
+        const out = JSON.parse(JSON.stringify(prog));
+        out.nodes.forEach((nd, j) => { if (nd[0] === 'param') nd[2] = Math.fround(paramVals.get(plan.map[j])); });
+        return out;
+      },
+    };
+  }
+  const sumArr = (v) => { let s = 0; for (let k = 0; k < v.length; k++) s += v[k]; return s; };
+
+  // ---------- aprendizaje ----------
+  // Optimizador Adam sobre los `param` del programa, minimizando sus `loss`.
+  function createLearner(prog, opts = {}) {
+    const c = compile(prog, opts);
+    if (!c.paramIds.length) throw new Error('el programa no tiene ningún param que aprender');
+    if (!c.lossIds.length) throw new Error('el programa no tiene ningún loss que minimizar');
+    const lr = opts.lr ?? 0.05, b1 = 0.9, b2 = 0.999, eps = 1e-8;
+    const t = opts.t ?? 0, dt = opts.dt ?? 1 / 60;
+    const k = c.paramIds.length, m = new Float64Array(k), v = new Float64Array(k);
+    let stepNo = 0;
+    return {
+      compiled: c,
+      get steps() { return stepNo; },
+      step(times = 1) {
+        let loss = NaN;
+        for (let s = 0; s < times; s++) {
+          c.frame(t, dt);
+          const r = c.backward();
+          loss = r.loss;
+          const p = c.getParams();
+          stepNo++;
+          for (let j = 0; j < k; j++) {
+            const g = r.grads[j];
+            if (!Number.isFinite(g)) continue;
+            m[j] = b1 * m[j] + (1 - b1) * g;
+            v[j] = b2 * v[j] + (1 - b2) * g * g;
+            p[j] -= (lr * (m[j] / (1 - b1 ** stepNo))) / (Math.sqrt(v[j] / (1 - b2 ** stepNo)) + eps);
+          }
+          c.setParams(p);
+        }
+        return loss;
+      },
+      loss() { c.frame(t, dt); return c.lossValue(); },
+      program() { return c.exportProgram(); },
+    };
+  }
+
+  function learn(prog, opts = {}) {
+    const L = createLearner(prog, opts);
+    const steps = opts.steps ?? 300, history = [];
+    for (let s = 0; s < steps; s++) history.push(L.step());
+    return { program: L.program(), loss: L.loss(), history };
+  }
+
+  // ---------- GPU: campos por píxel → GLSL ----------
+  const GL = {
+    add: (a, b) => `(${a}+${b})`, sub: (a, b) => `(${a}-${b})`, mul: (a, b) => `(${a}*${b})`,
+    div: (a, b) => `dv(${a},${b})`, mod: (a, b) => `md(${a},${b})`,
+    sin: (a) => `sin(${a})`, cos: (a) => `cos(${a})`, abs: (a) => `abs(${a})`, sqrt: (a) => `sqrt(abs(${a}))`,
+    min: (a, b) => `min(${a},${b})`, max: (a, b) => `max(${a},${b})`, pow: (a, b) => `pow(abs(${a}),${b})`,
+    fract: (a) => `fract(${a})`, hash: (a) => `hsh(${a})`,
+    lt: (a, b) => `(${a}<${b}?1.0:0.0)`, gt: (a, b) => `(${a}>${b}?1.0:0.0)`, floor: (a) => `floor(${a})`,
+    select: (c, a, b) => `(${c}>0.0?${a}:${b})`, mix: (a, b, t) => `(${a}+(${b}-${a})*${t})`,
+    atan2: (a, b) => `atan(${a},${b})`, exp: (a) => `exp(${a})`,
+    px: () => 'PX', py: () => 'PY',
+  };
+  const lit = (x) => {
+    let s = Number.isInteger(x) && Math.abs(x) < 1e15 ? x.toFixed(1) : String(x);
+    if (!/[.e]/.test(s)) s += '.0';
+    return x < 0 ? `(${s})` : s;
+  };
+  function glsl(nodes, shape, root) {
+    const need = new Set();
+    const visit = (i) => { if (need.has(i)) return; need.add(i); if (shape[i] === 'p') nodes[i][1].forEach(visit); };
+    nodes[root][1].forEach(visit);
+    const uniforms = [], uidx = new Map();
+    const ref = (r) => {
+      if (shape[r] === 'p') return 'n' + r;
+      if (nodes[r][0] === 'const') return lit(nodes[r][2]);
+      if (!uidx.has(r)) { uidx.set(r, uniforms.length); uniforms.push(r); }
+      return `u[${uidx.get(r)}]`;
+    };
+    const lines = [];
+    const pixelNodes = [...need].sort((a, b) => a - b).filter((i) => shape[i] === 'p');
+    for (const i of pixelNodes) {
+      const [name, ins] = nodes[i];
+      lines.push(`float n${i}=${GL[name](...ins.map(ref))};`);
+    }
+    const [h, l, al] = nodes[root][1].map(ref);
+    if (uniforms.length > LIMITS.uniforms) throw new Error('demasiados valores enviados a la GPU');
+    const src = [
+      'precision highp float;',
+      'uniform vec2 res;',
+      `uniform float u[${Math.max(1, uniforms.length)}];`,
+      'float dv(float a,float b){return b==0.0?0.0:a/b;}',
+      'float md(float a,float b){return b==0.0?0.0:a-b*floor(a/b);}',
+      'float hsh(float a){return fract(sin(a*12.9898+78.233)*43758.5453);}',
+      'vec3 hsl(float h,float s,float l){vec3 k=clamp(abs(mod(h*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);return l+s*(k-0.5)*(1.0-abs(2.0*l-1.0));}',
+      'void main(){',
+      'float sc=min(res.x,res.y)*0.5;',
+      'float PX=(gl_FragCoord.x-res.x*0.5)/sc;',
+      'float PY=(res.y*0.5-gl_FragCoord.y)/sc;',
+      ...lines,
+      `float A=clamp(${al},0.0,1.0);`,
+      `gl_FragColor=vec4(hsl(fract(${h}),0.85,clamp(${l},0.0,1.0))*A,A);`,
+      '}',
+    ].join('\n');
+    return { src, uniforms, uidx, pixelNodes };
+  }
+
+  // Renderizador WebGL para los campos (solo en navegador).
+  function createFieldRenderer(scale = 0.5) {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl', { premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: true });
+    if (!gl) return null;
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const cache = new Map();
+    const shader = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    };
+    const program = (src) => {
+      if (cache.has(src)) return cache.get(src);
+      let e = null;
+      try {
+        const p = gl.createProgram();
+        gl.attachShader(p, shader(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}'));
+        gl.attachShader(p, shader(gl.FRAGMENT_SHADER, src));
+        gl.linkProgram(p);
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+        e = { p, loc: gl.getAttribLocation(p, 'p'), u: gl.getUniformLocation(p, 'u'), res: gl.getUniformLocation(p, 'res') };
+      } catch (err) { console.warn('NEXO shader:', err); }
+      cache.set(src, e);
+      return e;
+    };
+    return {
+      draw(d, w, h) {
+        const e = program(d.src);
+        if (!e) return null;
+        const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+        gl.viewport(0, 0, cw, ch);
+        gl.useProgram(e.p);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.enableVertexAttribArray(e.loc);
+        gl.vertexAttribPointer(e.loc, 2, gl.FLOAT, false, 0, 0);
+        if (e.u && d.u.length) gl.uniform1fv(e.u, d.u);
+        gl.uniform2f(e.res, cw, ch);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        return canvas;
+      },
     };
   }
 
   // Dibuja una lista de primitivas en un canvas 2D. Espacio: -1..1, origen centro.
-  function render(ctx, draws, w, h) {
+  function render(ctx, draws, w, h, field) {
     const s = Math.min(w, h) / 2, cx = w / 2, cy = h / 2;
     let count = 0;
+    if (!Array.isArray(draws)) return 0;
     for (const d of draws) {
-      const n = Math.max(...d.a.map(len));
+      if (d.kind === 'f') {
+        const c = field && field.draw(d, w, h);
+        if (c) {
+          const op = ctx.globalCompositeOperation;
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.drawImage(c, 0, 0, w, h);
+          ctx.globalCompositeOperation = op;
+          count++;
+        }
+        continue;
+      }
+      let n = Infinity;
+      for (const x of d.a) if (isArr(x)) n = Math.min(n, x.length);
+      if (n === Infinity) n = 1;
+      const hi = d.kind === 'c' ? 3 : 4;
       for (let k = 0; k < n; k++) {
         const v = d.a.map((x) => at(x, k));
-        const hue = fr(v[d.kind === 'c' ? 3 : 4]) * 360;
-        const alpha = Math.max(0, Math.min(1, v[d.kind === 'c' ? 4 : 5]));
+        if (!v.every(Number.isFinite)) continue;
+        const color = `hsla(${fr(v[hi]) * 360},85%,62%,${Math.max(0, Math.min(1, v[hi + 1]))})`;
         if (d.kind === 'c') {
-          ctx.fillStyle = `hsla(${hue},85%,62%,${alpha})`;
+          ctx.fillStyle = color;
           ctx.beginPath();
           ctx.arc(cx + v[0] * s, cy + v[1] * s, Math.abs(v[2]) * s, 0, 6.2832);
           ctx.fill();
         } else {
-          ctx.strokeStyle = `hsla(${hue},85%,62%,${alpha})`;
+          ctx.strokeStyle = color;
           ctx.beginPath();
           ctx.moveTo(cx + v[0] * s, cy + v[1] * s);
           ctx.lineTo(cx + v[2] * s, cy + v[3] * s);
@@ -311,67 +970,699 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
     return count;
   }
 
-  const Nexo = { OPS, CAPS, verify, encode, decode, compile, render };
+  // Color HSL → RGB (0..1), la misma fórmula que el shader.
+  function hsl(h, s, l) {
+    const f = (o) => { const k = Math.min(1, Math.max(0, Math.abs(((h * 6 + o) % 6 + 6) % 6 - 3) - 1)); return l + s * (k - 0.5) * (1 - Math.abs(2 * l - 1)); };
+    return [f(0), f(4), f(2)];
+  }
+
+  const Nexo = { OPS, CAPS, VERSION, LIMITS, expand, verify, encode, encodeMap, decode, compile, createLearner, learn, glsl, hsl, render, createFieldRenderer };
   if (typeof module !== 'undefined' && module.exports) module.exports = Nexo;
   else root.Nexo = Nexo;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const EXAMPLES = {"girasol":{"nexo":1,"caps":["draw"],"nodes":[["time",[]],["range",[],900],["const",[],900],["div",[1,2]],["sqrt",[3]],["const",[],0.95],["mul",[4,5]],["const",[],2.399963],["mul",[1,7]],["const",[],0.15],["mul",[0,9]],["add",[8,10]],["const",[],2],["mul",[0,12]],["const",[],14],["mul",[6,14]],["sub",[13,15]],["sin",[16]],["const",[],0.5],["mul",[17,18]],["const",[],1],["add",[19,20]],["const",[],0.012],["mul",[3,22]],["const",[],0.006],["add",[24,23]],["mul",[25,21]],["mul",[3,18]],["const",[],0.03],["mul",[0,28]],["add",[27,29]],["cos",[11]],["mul",[31,6]],["sin",[11]],["mul",[33,6]],["const",[],0.75],["circle",[32,34,26,30,35]]]},"hilos":{"nexo":1,"caps":["draw"],"nodes":[["time",[]],["range",[],360],["const",[],360],["div",[1,2]],["const",[],6.283185],["mul",[3,4]],["const",[],3],["mul",[5,6]],["const",[],0.4],["mul",[0,8]],["add",[7,9]],["cos",[10]],["const",[],0.92],["mul",[11,12]],["const",[],2],["mul",[5,14]],["const",[],0.3],["mul",[0,16]],["add",[15,17]],["sin",[18]],["mul",[19,12]],["const",[],5],["mul",[5,21]],["const",[],0.5],["mul",[0,23]],["sub",[22,24]],["cos",[25]],["mul",[26,23]],["const",[],4],["mul",[5,28]],["const",[],0.2],["mul",[0,30]],["sub",[29,31]],["sin",[32]],["mul",[33,23]],["div",[1,2]],["const",[],0.05],["mul",[0,36]],["add",[35,37]],["const",[],0.35],["line",[13,20,27,34,38,39]]]},"nebulosa":{"nexo":1,"caps":["draw"],"nodes":[["time",[]],["range",[],1500],["hash",[1]],["const",[],17.3],["add",[1,3]],["hash",[4]],["const",[],51.7],["add",[1,6]],["hash",[7]],["const",[],0.6],["pow",[2,9]],["const",[],0.95],["mul",[10,11]],["const",[],1.2],["sub",[13,12]],["mul",[14,9]],["const",[],6.283185],["mul",[5,16]],["mul",[0,15]],["add",[17,18]],["const",[],4],["mul",[12,20]],["add",[19,21]],["const",[],3],["mul",[0,23]],["const",[],40],["mul",[8,25]],["add",[24,26]],["sin",[27]],["const",[],0.5],["mul",[28,29]],["add",[30,29]],["cos",[22]],["mul",[32,12]],["sin",[22]],["mul",[34,12]],["const",[],0.55],["mul",[35,36]],["const",[],0.006],["mul",[8,38]],["const",[],0.002],["add",[40,39]],["const",[],0.35],["mul",[12,42]],["add",[36,43]],["mul",[31,9]],["const",[],0.15],["add",[46,45]],["circle",[33,37,41,44,47]],["const",[],1.5],["mul",[0,49]],["sin",[50]],["const",[],0.01],["mul",[51,52]],["const",[],0.07],["add",[54,53]],["const",[],0],["const",[],0.08],["circle",[56,56,55,57,42]],["layer",[58,48]]]}};
+/*
+ * Constructor de grafos NEXO. Es la herramienta con la que una IA (o un
+ * humano curioso) emite programas sin escribir texto: cada llamada añade un
+ * nodo y devuelve una referencia. Los números sueltos se convierten en
+ * constantes y se deduplican.
+ *
+ *   const g = graph(['draw']);
+ *   const onda = g.func(2, (f, a, b) => f.sin(f.mul(a, b)));
+ *   const x = g.state();                 // memoria entre fotogramas
+ *   x.set(g.add(x, g.call(onda, g.time(), 2)));
+ *   g.circle(x, 0, 0.1, 0.5, 1);
+ *   const programa = g.build();
+ */
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory(require('./nexo'));
+  else root.NexoBuilder = factory(root.Nexo);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (Nexo) {
+  'use strict';
+  const SPECIAL = new Set(['const', 'range', 'prev', 'input', 'call', 'arg', 'param']);
+  const DRAW = new Set(['circle', 'line', 'layer', 'shade']);
+
+  function scope(nodes, funcs, isMain) {
+    const consts = new Map();
+    const g = { nodes };
+    const ref = (x) => {
+      if (x && x.__node) return x.i;
+      if (typeof x !== 'number' || !Number.isFinite(x)) throw new Error(`valor no válido: ${x}`);
+      if (!consts.has(x)) { nodes.push(['const', [], x]); consts.set(x, nodes.length - 1); }
+      return consts.get(x);
+    };
+    const node = (op, ins, c) => {
+      const n = [op, ins.map(ref)];
+      if (c !== undefined) n.push(c);
+      nodes.push(n);
+      return { __node: true, i: nodes.length - 1 };
+    };
+    g._node = node;
+    for (const [name, arity, , hasConst] of Nexo.OPS) {
+      if (SPECIAL.has(name) || hasConst) continue;
+      g[name] = (...xs) => {
+        if (arity >= 0 && xs.length !== arity) throw new Error(`${name} espera ${arity} entradas`);
+        return node(name, xs);
+      };
+    }
+    g.range = (n) => node('range', [], n);
+    g.input = (slot) => node('input', [], slot);
+    g.call = (f, ...xs) => {
+      if (xs.length !== f.nargs) throw new Error(`la función espera ${f.nargs} argumentos`);
+      return node('call', xs, f.idx);
+    };
+    // Define una función (subgrafo). Solo puede llamar a funciones ya definidas.
+    g.func = (nargs, body) => {
+      const fs = scope([], funcs, false);
+      const args = [];
+      for (let k = 0; k < nargs; k++) args.push(fs._node('arg', [], k));
+      fs._finish(body(fs, ...args));
+      funcs.push({ nodes: fs.nodes });
+      return { __func: true, idx: funcs.length - 1, nargs };
+    };
+    // La salida de un cuerpo es su último nodo.
+    g._finish = (out) => {
+      const i = ref(out);
+      if (i === nodes.length - 1) return;
+      const r = { __node: true, i };
+      if (DRAW.has(nodes[i][0])) node('layer', [r]); else node('add', [r, 0]);
+    };
+    // Marca qué valor es la salida del cuerpo (lo coloca como último nodo).
+    g.output = (x) => { g._finish(x); return { __node: true, i: nodes.length - 1 }; };
+    if (isMain) {
+      // Constante que el programa puede aprender (ver `loss` y Nexo.learn).
+      g.param = (initial) => node('param', [], initial);
+      // Estado: devuelve el valor del fotograma anterior; se fija con .set(nuevo).
+      g.state = () => {
+        const s = node('prev', [], -1);
+        s.set = (x) => { nodes[s.i][2] = ref(x); };
+        return s;
+      };
+    }
+    return g;
+  }
+
+  function graph(caps = ['draw']) {
+    const funcs = [];
+    const g = scope([], funcs, true);
+    g.build = () => {
+      const p = { nexo: Nexo.VERSION, caps, nodes: g.nodes };
+      if (funcs.length) p.funcs = funcs;
+      return p;
+    };
+    return g;
+  }
+
+  return { graph };
+});
+
+/*
+ * La IA que escribe NEXO.
+ *
+ * Un algoritmo evolutivo genera programas visuales sin intervención humana:
+ *   1. Crea programas al azar (árboles de expresiones compilados a grafos).
+ *   2. Los ejecuta y les pone nota con criterios estéticos medibles:
+ *      cobertura del lienzo, estructura (curvas frente a ruido), movimiento
+ *      y variedad de color.
+ *   3. Se queda con los mejores, los cruza y los muta. Repite.
+ *
+ * Todo programa que produce pasa por el verificador de NEXO: puede ser feo,
+ * pero nunca peligroso ni infinito.
+ */
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory(require('./nexo'), require('./builder'));
+  else root.NexoEvolve = factory(root.Nexo, root.NexoBuilder);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (Nexo, Builder) {
+  'use strict';
+  const UN = ['sin', 'cos', 'abs', 'fract'];
+  const BI = ['add', 'sub', 'mul', 'min', 'max'];
+  const SIZES = [300, 500, 800];
+  const CHANNELS = { circle: 5, line: 6 };
+
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const pick = (r, xs) => xs[Math.floor(r() * xs.length)];
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  // Hojas: u = posición en el vector (0..1), t = tiempo, h = aleatorio fijo por elemento, c = constante.
+  function randTree(r, depth) {
+    if (depth <= 0 || r() < 0.25) {
+      const k = pick(r, ['u', 'u', 'u', 't', 'h', 'c', 'c']);
+      return k === 'c' ? { c: Math.round((r() * 2 - 1) * 600) / 100 } : { v: k };
+    }
+    if (r() < 0.45) return { op: pick(r, UN), k: [randTree(r, depth - 1)] };
+    return { op: pick(r, BI), k: [randTree(r, depth - 1), randTree(r, depth - 1)] };
+  }
+
+  function randomGenome(r) {
+    const kind = r() < 0.6 ? 'circle' : 'line';
+    return { kind, n: pick(r, SIZES), ch: Array.from({ length: CHANNELS[kind] }, () => randTree(r, 4)) };
+  }
+
+  // Genoma → programa NEXO (con subexpresiones comunes compartidas).
+  function toProgram(gen) {
+    const g = Builder.graph(['draw']);
+    const i = g.range(gen.n);
+    const leaf = { u: g.div(i, gen.n), t: g.mul(g.time(), 0.5), h: g.hash(i) };
+    const memo = new Map();
+    const emit = (tr) => {
+      if ('c' in tr) return tr.c;
+      if (tr.v) return leaf[tr.v];
+      const key = JSON.stringify(tr);
+      if (!memo.has(key)) memo.set(key, g[tr.op](...tr.k.map(emit)));
+      return memo.get(key);
+    };
+    const e = gen.ch.map(emit);
+    const pos = (x) => g.mul(g.sin(x), 0.95);
+    const unit = (x) => g.fract(g.abs(x));
+    if (gen.kind === 'circle') {
+      g.circle(pos(e[0]), pos(e[1]), g.add(0.003, g.mul(unit(e[2]), 0.015)), g.fract(e[3]), g.add(0.2, g.mul(unit(e[4]), 0.6)));
+    } else {
+      g.line(pos(e[0]), pos(e[1]), pos(e[2]), pos(e[3]), g.fract(e[4]), g.add(0.05, g.mul(unit(e[5]), 0.3)));
+    }
+    return g.build();
+  }
+
+  // Nota estética entre 0 y 1, más una "huella" de dónde pinta en el lienzo.
+  const evaluate = (gen) => analyze(gen).score;
+  function analyze(gen) {
+    const ZERO = { score: 0, sig: null };
+    let c;
+    try { c = Nexo.compile(toProgram(gen)); } catch (e) { return ZERO; }
+    const DT = 0.04;
+    const points = (draw) => {
+      const a = draw[0].a, n = gen.n;
+      const get = (x, k) => (typeof x === 'number' ? x : x[k]);
+      const sets = gen.kind === 'circle' ? [[0, 1]] : [[0, 1], [2, 3]];
+      const pts = [];
+      for (const [xi, yi] of sets) for (let k = 0; k < n; k++) pts.push([get(a[xi], k), get(a[yi], k)]);
+      const hue = [];
+      for (let k = 0; k < n; k++) hue.push(get(a[gen.kind === 'circle' ? 3 : 4], k));
+      return { pts, hue };
+    };
+    const A = points(c.frame(1, DT));
+    const B = points(c.frame(1 + DT, DT));
+    const n = A.pts.length;
+    let bad = 0;
+    const G = 16, grid = new Float64Array(G * G);
+    for (const [x, y] of A.pts) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) { bad++; continue; }
+      const gx = Math.min(G - 1, Math.max(0, Math.floor(((x + 1) / 2) * G)));
+      const gy = Math.min(G - 1, Math.max(0, Math.floor(((y + 1) / 2) * G)));
+      grid[gy * G + gx]++;
+    }
+    if (bad > n * 0.05) return ZERO;
+    let H = 0;
+    for (const v of grid) if (v) { const p = v / (n - bad); H -= p * Math.log(p); }
+    const coverage = H / Math.log(G * G);
+
+    const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) || 0;
+    let adj = 0, rnd = 0, mov = 0;
+    for (let k = 0; k < n; k++) {
+      adj += dist(A.pts[k], A.pts[(k + 1) % n]);
+      rnd += dist(A.pts[k], A.pts[(k * 7919 + 13) % n]);
+      mov += dist(A.pts[k], B.pts[k]);
+    }
+    const structure = Math.max(0, Math.min(1, 1 - adj / (rnd + 1e-9)));
+    const speed = mov / n / DT;
+    const ls = Math.log10(speed + 1e-4) - Math.log10(0.3);
+    const motion = Math.max(0.1, Math.exp(-(ls * ls) / (2 * 0.35 * 0.35)));
+    const hues = A.hue.map((x) => x - Math.floor(x)).filter(Number.isFinite);
+    const mean = hues.reduce((s, x) => s + x, 0) / (hues.length || 1);
+    const sd = Math.sqrt(hues.reduce((s, x) => s + (x - mean) ** 2, 0) / (hues.length || 1));
+    const color = 0.6 + 0.4 * Math.min(1, sd * 3.5);
+    const score = coverage * (0.35 + 0.65 * structure) * motion * color;
+    // Huella: ocupación del lienzo en una rejilla de 8×8, normalizada.
+    const sig = new Float64Array(64);
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) sig[(y >> 1) * 8 + (x >> 1)] += grid[y * G + x] / (n - bad);
+    return { score: Number.isFinite(score) ? Math.round(score * 10000) / 10000 : 0, sig };
+  }
+  // Distancia visual entre dos huellas (0 = iguales, 2 = sin nada en común).
+  const visualDistance = (a, b) => { if (!a || !b) return 2; let d = 0; for (let k = 0; k < 64; k++) d += Math.abs(a[k] - b[k]); return d; };
+
+  function nodesOf(tree, out = [], parent = null, idx = -1) {
+    out.push({ t: tree, parent, idx });
+    if (tree.k) tree.k.forEach((k, j) => nodesOf(k, out, tree, j));
+    return out;
+  }
+
+  function mutate(gen, r) {
+    const g = clone(gen);
+    const ci = Math.floor(r() * g.ch.length);
+    const replace = () => {
+      const ns = nodesOf(g.ch[ci]);
+      const x = ns[Math.floor(r() * ns.length)];
+      const fresh = randTree(r, 2);
+      if (x.parent) x.parent.k[x.idx] = fresh; else g.ch[ci] = fresh;
+    };
+    const roll = r();
+    if (roll < 0.4) replace();
+    else if (roll < 0.75) {
+      let any = false;
+      for (const ch of g.ch) for (const x of nodesOf(ch)) {
+        if ('c' in x.t && r() < 0.5) { x.t.c = Math.round((x.t.c * (0.7 + r() * 0.6) + (r() - 0.5) * 0.4) * 100) / 100; any = true; }
+      }
+      if (!any) replace();
+    } else if (roll < 0.92) {
+      const ops = nodesOf(g.ch[ci]).filter((x) => x.t.op);
+      if (ops.length) { const x = pick(r, ops); x.t.op = pick(r, x.t.k.length === 1 ? UN : BI); } else replace();
+    } else g.n = pick(r, SIZES);
+    // Control de crecimiento: un canal demasiado grande se reinicia.
+    g.ch = g.ch.map((ch) => (nodesOf(ch).length > 40 ? randTree(r, 3) : ch));
+    return g;
+  }
+
+  // Los mejores individuos que además se ven distintos entre sí.
+  function distinct(pop, n, minDistance = 0.5) {
+    const out = [];
+    for (const ind of pop) {
+      if (out.every((o) => visualDistance(o.sig, ind.sig) > minDistance)) out.push(ind);
+      if (out.length === n) break;
+    }
+    return out;
+  }
+
+  function crossover(a, b, r) {
+    if (a.kind !== b.kind) return clone(a);
+    return { kind: a.kind, n: r() < 0.5 ? a.n : b.n, ch: a.ch.map((c, k) => clone(r() < 0.5 ? c : b.ch[k])) };
+  }
+
+  function create(opts = {}) {
+    const r = rng(opts.seed ?? 1);
+    const size = opts.size || 24;
+    let pop = Array.from({ length: size }, () => ({ g: randomGenome(r), s: null }));
+    let generation = 0;
+    const score = (ind) => { if (ind.s === null) Object.assign(ind, (({ score: s, sig }) => ({ s, sig }))(analyze(ind.g))); return ind.s; };
+    const sortPop = () => { pop.forEach(score); pop.sort((a, b) => b.s - a.s); };
+    sortPop();
+    const tournament = () => {
+      let best = null;
+      for (let k = 0; k < 3; k++) { const c = pick(r, pop); if (!best || c.s > best.s) best = c; }
+      return best;
+    };
+    return {
+      get generation() { return generation; },
+      get population() { return pop; },
+      best() { return pop[0]; },
+      distinct: (n) => distinct(pop, n),
+      step() {
+        const next = distinct(pop, 4);
+        for (const ind of pop) { if (next.length >= 4) break; if (!next.includes(ind)) next.push(ind); }
+        while (next.length < size - 1) {
+          const a = tournament();
+          const child = r() < 0.5 ? crossover(a.g, tournament().g, r) : clone(a.g);
+          next.push({ g: mutate(child, r), s: null });
+        }
+        next.push({ g: randomGenome(r), s: null }); // un inmigrante por generación mantiene la diversidad
+        pop = next;
+        generation++;
+        sortPop();
+        return { generation, best: pop[0], score: pop[0].s };
+      },
+    };
+  }
+
+  return { create, toProgram, evaluate, analyze, visualDistance, randomGenome, mutate, crossover, distinct, rng };
+});
+
+/*
+ * Síntesis de programas: descubrir la fórmula que explica unos datos.
+ *
+ * Combina las dos formas de aprender de NEXO:
+ *   - la ESTRUCTURA (qué operaciones) se busca por evolución;
+ *   - las CONSTANTES (los `param`) se ajustan por gradiente, con la
+ *     diferenciación automática del propio lenguaje.
+ * Lo aprendido se hereda (los hijos empiezan con las constantes ajustadas de
+ * sus padres), así que cada generación parte de donde se quedó la anterior.
+ *
+ * Resultado: un programa NEXO que predice y, de regalo, la fórmula legible.
+ */
+(function (root, factory) {
+  if (typeof module !== 'undefined' && module.exports) module.exports = factory(require('./nexo'), require('./builder'), require('./evolve'));
+  else root.NexoSynth = factory(root.Nexo, root.NexoBuilder, root.NexoEvolve);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (Nexo, Builder, Evolve) {
+  'use strict';
+  const UN = ['sin', 'cos'];
+  const BI = ['add', 'sub', 'mul'];
+  const MAX_SIZE = 25;
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const pick = (r, xs) => xs[Math.floor(r() * xs.length)];
+
+  const leaf = (r) => (r() < 0.5 ? { v: 'x' } : { p: Math.round((r() * 4 - 2) * 100) / 100 });
+  function randTree(r, depth) {
+    if (depth <= 0 || r() < 0.3) return leaf(r);
+    if (r() < 0.35) return { op: pick(r, UN), k: [randTree(r, depth - 1)] };
+    return { op: pick(r, BI), k: [randTree(r, depth - 1), randTree(r, depth - 1)] };
+  }
+  function nodesOf(t, out = [], parent = null, idx = -1) {
+    out.push({ t, parent, idx });
+    if (t.k) t.k.forEach((c, j) => nodesOf(c, out, t, j));
+    return out;
+  }
+  const size = (t) => nodesOf(t).length;
+  const structureKey = (t) => JSON.stringify(t, (k, v) => (k === 'p' ? 0 : v));
+
+  // Árbol → programa NEXO con su propio objetivo (error cuadrático medio).
+  function toProgram(tree) {
+    const g = Builder.graph(['input']);
+    const x = g.input(0), y = g.input(1);
+    const emit = (t) => (t.v ? x : 'p' in t ? g.param(t.p) : g[t.op](...t.k.map(emit)));
+    const f = emit(tree);
+    const e = g.sub(f, y);
+    g.loss(g.div(g.sum(g.mul(e, e)), g.count(e)));
+    g.output(f);
+    return g.build();
+  }
+
+  // Evalúa un árbol directamente (solo para inicializar el escalado lineal).
+  function evalTree(t, xs) {
+    if (t.v) return Float64Array.from(xs);
+    if ('p' in t) return new Float64Array(xs.length).fill(t.p);
+    const k = t.k.map((c) => evalTree(c, xs)), f = F[t.op];
+    return k.length === 1 ? k[0].map(f) : k[0].map((v, j) => f(v, k[1][j]));
+  }
+  // Escalado lineal: a y b óptimos (mínimos cuadrados) para y ≈ a + b·f(x).
+  // Así la evolución solo busca la FORMA; la escala sale gratis.
+  function linearScale(t, data) {
+    const f = evalTree(t, data.x), y = data.y, n = y.length;
+    let mf = 0, my = 0;
+    for (let j = 0; j < n; j++) { mf += f[j]; my += y[j]; }
+    mf /= n; my /= n;
+    let cov = 0, vf = 0;
+    for (let j = 0; j < n; j++) { cov += (f[j] - mf) * (y[j] - my); vf += (f[j] - mf) ** 2; }
+    const b = vf > 1e-12 ? cov / vf : 0, a = my - b * mf;
+    return Number.isFinite(a) && Number.isFinite(b) ? [a, b] : [my, 0];
+  }
+  const wrap = (t, a, b) => ({ op: 'add', k: [{ p: a }, { op: 'mul', k: [{ p: b }, t] }] });
+
+  // Ajusta todas las constantes por gradiente (con la autodiferenciación de
+  // NEXO) y las escribe de vuelta en el árbol. Devuelve el árbol envuelto.
+  function fit(tree, data, steps = 40, lr = 0.1) {
+    const w = wrap(tree, ...linearScale(tree, data));
+    const params = nodesOf(w).filter((n) => 'p' in n.t);
+    try {
+      const L = Nexo.createLearner(toProgram(w), { inputs: [data.x, data.y], lr });
+      L.step(steps);
+      const learned = L.compiled.getParams();
+      params.forEach((n, k) => { if (Number.isFinite(learned[k])) n.t.p = learned[k]; });
+      const mse = L.loss();
+      return { mse: Number.isFinite(mse) ? mse : Infinity, tree: w };
+    } catch (e) {
+      return { mse: Infinity, tree: w };
+    }
+  }
+
+  function mutate(tree, r) {
+    let t = clone(tree);
+    const ns = nodesOf(t);
+    const x = pick(r, ns);
+    const put = (fresh) => { if (x.parent) x.parent.k[x.idx] = fresh; else t = fresh; };
+    const roll = r();
+    if (roll < 0.3) put(randTree(r, 2));
+    else if (roll < 0.5) { if (x.t.op) x.t.op = pick(r, x.t.k.length === 1 ? UN : BI); else put(leaf(r)); }
+    else if (roll < 0.7) put(r() < 0.4 ? { op: pick(r, UN), k: [x.t] } : { op: pick(r, BI), k: [x.t, leaf(r)] });
+    else if (roll < 0.85) { const sub = pick(r, nodesOf(x.t)); put(sub.t); }
+    else for (const n of ns) if ('p' in n.t) n.t.p = n.t.p * (0.5 + r()) + (r() - 0.5) * 0.5;
+    return size(t) > MAX_SIZE ? randTree(r, 3) : t;
+  }
+
+  function crossover(a, b, r) {
+    let t = clone(a);
+    const x = pick(r, nodesOf(t)), donor = clone(pick(r, nodesOf(b)).t);
+    if (x.parent) x.parent.k[x.idx] = donor; else t = donor;
+    return size(t) > MAX_SIZE ? clone(a) : t;
+  }
+
+  // Simplifica: pliega en una constante todo lo que no depende de x,
+  // y reescribe x + x → 2·x y x − x → 0. Las constantes plegadas se siguen
+  // pudiendo aprender, así que no se pierde nada.
+  const F = { sin: Math.sin, cos: Math.cos, add: (a, b) => a + b, sub: (a, b) => a - b, mul: (a, b) => a * b };
+  const hasX = (t) => !!t.v || (t.k || []).some(hasX);
+  const value = (t) => ('p' in t ? t.p : F[t.op](...t.k.map(value)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // o.eps: constantes sumadas más pequeñas que esto se descartan.
+  // o.expand: reparte c·(A ± B) → c·A ± c·B (solo para presentar la fórmula).
+  function simplify(t, o = {}) {
+    const eps = o.eps ?? 1e-3;
+    if (!hasX(t)) { const v = value(t); return { p: Number.isFinite(v) ? v : 0 }; }
+    if (!t.k) return t;
+    const k = t.k.map((c) => simplify(c, o));
+    if (t.op === 'mul' && 'p' in k[1] && !('p' in k[0])) k.reverse();
+    // sin(−c·X) → −sin(c·X)   y   cos(−c·X) → cos(c·X)
+    if ((t.op === 'sin' || t.op === 'cos') && k[0].op === 'mul' && 'p' in k[0].k[0] && k[0].k[0].p < 0) {
+      const inner = { op: t.op, k: [{ op: 'mul', k: [{ p: -k[0].k[0].p }, k[0].k[1]] }] };
+      return t.op === 'cos' ? inner : { op: 'mul', k: [{ p: -1 }, inner] };
+    }
+    if (o.expand && (t.op === 'add' || t.op === 'sub')) return tidySum({ op: t.op, k }, eps);
+    if (o.expand && t.op === 'mul') {
+      // A·(B ± C) → A·B ± A·C, y luego junta las constantes del producto.
+      const j = k.findIndex((c) => c.op === 'add' || c.op === 'sub');
+      if (j >= 0 && size(k[1 - j]) <= 6) {
+        const A = k[1 - j], [B, C] = k[j].k;
+        return simplify({ op: k[j].op, k: [{ op: 'mul', k: [clone(A), B] }, { op: 'mul', k: [clone(A), C] }] }, o);
+      }
+      return tidyProduct(k, eps);
+    }
+    if (t.op === 'add' && same(k[0], k[1])) return { op: 'mul', k: [{ p: 2 }, k[0]] };
+    if (t.op === 'sub' && same(k[0], k[1])) return { p: 0 };
+    if (t.op === 'mul') {
+      // Constante delante; c1·(c2·X) → (c1·c2)·X
+      if ('p' in k[1] && !('p' in k[0])) k.reverse();
+      if ('p' in k[0] && k[1].op === 'mul') {
+        const inner = k[1].k, ci = inner.findIndex((c) => 'p' in c);
+        if (ci >= 0) return { op: 'mul', k: [{ p: k[0].p * inner[ci].p }, inner[1 - ci]] };
+      }
+    }
+    const tiny = (c) => 'p' in c && Math.abs(c.p) < eps;
+    if (t.op === 'add' && tiny(k[0])) return k[1];
+    if ((t.op === 'add' || t.op === 'sub') && tiny(k[1])) return k[0];
+    if (t.op === 'mul' && 'p' in k[0] && Math.abs(k[0].p - 1) < 1e-3) return k[1];
+    if (t.op === 'add' || t.op === 'sub') {
+      // A ± (−c)·B → A ∓ c·B   y   A ± (−c) → A ∓ c
+      const b = k[1], flip = t.op === 'add' ? 'sub' : 'add';
+      if ('p' in b && b.p < 0) return { op: flip, k: [k[0], { p: -b.p }] };
+      if (b.op === 'mul' && 'p' in b.k[0] && b.k[0].p < 0) return { op: flip, k: [k[0], { op: 'mul', k: [{ p: -b.k[0].p }, b.k[1]] }] };
+    }
+    return { op: t.op, k };
+  }
+
+  // Aplana un producto: multiplica todas las constantes y las pone delante.
+  function tidyProduct(k, eps) {
+    const factors = [];
+    const walk = (u) => { if (u.op === 'mul') u.k.forEach(walk); else factors.push(u); };
+    k.forEach(walk);
+    let c = 1;
+    const rest = [];
+    for (const f of factors) if ('p' in f) c *= f.p; else rest.push(f);
+    if (c === 0 || !rest.length) return { p: rest.length ? 0 : c };
+    rest.sort((a, b) => (b.v ? 1 : 0) - (a.v ? 1 : 0)); // las x primero
+    let out = rest[0];
+    for (const f of rest.slice(1)) out = { op: 'mul', k: [out, f] };
+    return Math.abs(c - 1) < eps ? out : { op: 'mul', k: [{ p: c }, out] };
+  }
+
+  // Aplana una suma, junta las constantes en una sola y pone primero los términos positivos.
+  function tidySum(t, eps) {
+    const list = [];
+    const walk = (u, sign) => {
+      if (u.op === 'add') { walk(u.k[0], sign); walk(u.k[1], sign); }
+      else if (u.op === 'sub') { walk(u.k[0], sign); walk(u.k[1], -sign); }
+      else list.push({ sign, t: u });
+    };
+    walk(t, 1);
+    let c = 0;
+    const rest = [];
+    for (const { sign, t: u } of list) {
+      if ('p' in u) c += sign * u.p;
+      else if (u.op === 'mul' && 'p' in u.k[0] && u.k[0].p < 0) rest.push({ sign: -sign, t: Math.abs(u.k[0].p + 1) < eps ? u.k[1] : { op: 'mul', k: [{ p: -u.k[0].p }, u.k[1]] } });
+      else rest.push({ sign, t: u });
+    }
+    rest.sort((a, b) => b.sign - a.sign);
+    if (Math.abs(c) >= eps) rest.push({ sign: c < 0 ? -1 : 1, t: { p: Math.abs(c) } });
+    if (!rest.length) return { p: c };
+    const first = rest[0];
+    let out = first.sign > 0 ? first.t
+      : first.t.op === 'mul' && 'p' in first.t.k[0] ? { op: 'mul', k: [{ p: -first.t.k[0].p }, first.t.k[1]] }
+      : 'p' in first.t ? { p: -first.t.p } : { op: 'mul', k: [{ p: -1 }, first.t] };
+    for (const { sign, t: u } of rest.slice(1)) out = { op: sign > 0 ? 'add' : 'sub', k: [out, u] };
+    return out;
+  }
+
+  // Fórmula legible (el andamio humano de la síntesis).
+  function formula(t, ctx) {
+    const num = (v) => {
+      const s = (Math.round(v * 1000) / 1000).toLocaleString('es-ES', { maximumFractionDigits: 3 });
+      return v < 0 ? `(${s})` : s;
+    };
+    if (t.v) return 'x';
+    if ('p' in t) return num(t.p);
+    if (t.k.length === 1) return `${t.op}(${formula(t.k[0])})`;
+    if (t.op === 'mul') {
+      const fs = [];
+      const walk = (u) => { if (u.op === 'mul') u.k.forEach(walk); else fs.push(u); };
+      walk(t);
+      const nx = fs.filter((f) => f.v).length, sup = ['', '', '²', '³', '⁴', '⁵', '⁶'];
+      const parts = fs.filter((f) => !f.v).map((f) => formula(f, 'mul'));
+      if (nx) parts.splice('p' in fs[0] ? 1 : 0, 0, 'x' + (sup[nx] ?? '^' + nx));
+      return parts.join('·');
+    }
+    const s = `${formula(t.k[0], 'left')} ${t.op === 'add' ? '+' : '−'} ${formula(t.k[1], t.op === 'sub' ? 'subRight' : 'left')}`;
+    return ctx === 'mul' || ctx === 'subRight' ? `(${s})` : s;
+  }
+
+  // Búsqueda en islas: varias poblaciones evolucionan por separado y cada
+  // cierto número de generaciones se pasan su mejor individuo. Así una isla
+  // atascada en un óptimo local no arrastra a las demás.
+  function create(data, opts = {}) {
+    const r = Evolve.rng(opts.seed ?? 1);
+    const nIslands = opts.islands || 4, popSize = opts.size || 30, fitSteps = opts.fitSteps || 30;
+    const migrateEvery = opts.migrateEvery || 10;
+    const mean = data.y.reduce((s, v) => s + v, 0) / data.y.length;
+    const variance = data.y.reduce((s, v) => s + (v - mean) ** 2, 0) / data.y.length || 1;
+    const display = { eps: 0.005 * Math.sqrt(variance), expand: true };
+    // Nota (menor es mejor): error relativo + una pequeña penalización por tamaño.
+    const score = (ind) => {
+      if (ind.s === undefined) {
+        ind.t = simplify(ind.t);
+        const res = fit(ind.t, data, fitSteps);
+        ind.mse = res.mse; ind.full = res.tree;
+        ind.s = ind.mse / variance + (opts.parsimony ?? 0.0003) * size(ind.t);
+      }
+      return ind.s;
+    };
+    const sortPop = (pop) => { pop.forEach(score); pop.sort((a, b) => a.s - b.s); };
+    let islands = Array.from({ length: nIslands }, () => {
+      const pop = Array.from({ length: popSize }, () => ({ t: randTree(r, 3) }));
+      sortPop(pop);
+      return pop;
+    });
+    let generation = 0;
+    const evolveIsland = (pop) => {
+      const tournament = () => { let best = null; for (let k = 0; k < 3; k++) { const c = pick(r, pop); if (!best || c.s < best.s) best = c; } return best; };
+      const seen = new Set(), next = [];
+      for (const ind of pop) {
+        const key = structureKey(ind.t);
+        if (seen.has(key)) continue;
+        seen.add(key); next.push(ind);
+        if (next.length === 4) break;
+      }
+      while (next.length < popSize - 2) {
+        const a = tournament();
+        next.push({ t: r() < 0.3 ? crossover(a.t, tournament().t, r) : mutate(a.t, r) });
+      }
+      while (next.length < popSize) next.push({ t: randTree(r, 3) });
+      sortPop(next);
+      return next;
+    };
+    const champion = () => islands.map((p) => p[0]).reduce((a, b) => (b.s < a.s ? b : a));
+    const describe = (ind) => { const t = simplify(clone(ind.full), display); return { formula: formula(t), mse: ind.mse, size: size(t), tree: t }; };
+    return {
+      get generation() { return generation; },
+      best: () => describe(champion()),
+      score: () => champion().s,
+      step() {
+        islands = islands.map(evolveIsland);
+        generation++;
+        if (generation % migrateEvery === 0) {
+          // El mejor de cada isla viaja a la siguiente y sustituye a su peor individuo.
+          const travellers = islands.map((p) => ({ t: clone(p[0].t) }));
+          islands.forEach((p, k) => { p[p.length - 1] = travellers[(k + nIslands - 1) % nIslands]; sortPop(p); });
+        }
+        return { generation, ...describe(champion()) };
+      },
+      // Afina las constantes del mejor con muchos más pasos y devuelve el programa final.
+      finish(steps = 400) {
+        const res = fit(simplify(clone(champion().t)), data, steps, 0.05);
+        const t = simplify(res.tree, display); // tras ajustar, ordena signos y constantes
+        const prog = toProgram(t);
+        const c = Nexo.compile(prog, { inputs: [data.x, data.y] });
+        c.frame(0);
+        return { formula: formula(t), mse: c.lossValue(), size: size(t), tree: t, program: prog };
+      },
+    };
+  }
+
+  // Busca hasta `generations` generaciones; para antes si la mejor fórmula
+  // lleva `patience` generaciones sin mejorar.
+  function synthesize(data, opts = {}) {
+    const s = create(data, opts);
+    const gens = opts.generations ?? 80, patience = opts.patience ?? 25;
+    let bestScore = Infinity, since = 0;
+    for (let k = 0; k < gens; k++) {
+      s.step();
+      const b = s.score();
+      if (b < bestScore - 1e-9) { bestScore = b; since = 0; } else since++;
+      if (opts.onStep) opts.onStep(s.best(), s.generation);
+      if (since >= patience) break;
+    }
+    return { generations: s.generation, ...s.finish() };
+  }
+
+  return { create, synthesize, toProgram, formula, simplify, fit };
+});
+
+const BUNDLE = {"visual":{"girasol":{"nexo":2,"caps":["draw"],"nodes":[["time",[]],["range",[],900],["const",[],900],["div",[1,2]],["sqrt",[3]],["const",[],0.95],["mul",[4,5]],["const",[],2.399963],["mul",[1,7]],["const",[],0.15],["mul",[0,9]],["add",[8,10]],["const",[],2],["mul",[0,12]],["const",[],14],["mul",[6,14]],["sub",[13,15]],["sin",[16]],["const",[],0.5],["mul",[17,18]],["const",[],1],["add",[19,20]],["const",[],0.012],["mul",[3,22]],["const",[],0.006],["add",[24,23]],["mul",[25,21]],["mul",[3,18]],["const",[],0.03],["mul",[0,28]],["add",[27,29]],["cos",[11]],["mul",[31,6]],["sin",[11]],["mul",[33,6]],["const",[],0.75],["circle",[32,34,26,30,35]]]},"hilos":{"nexo":2,"caps":["draw"],"nodes":[["time",[]],["range",[],360],["const",[],360],["div",[1,2]],["const",[],6.283185],["mul",[3,4]],["const",[],3],["mul",[5,6]],["const",[],0.4],["mul",[0,8]],["add",[7,9]],["cos",[10]],["const",[],0.92],["mul",[11,12]],["const",[],2],["mul",[5,14]],["const",[],0.3],["mul",[0,16]],["add",[15,17]],["sin",[18]],["mul",[19,12]],["const",[],5],["mul",[5,21]],["const",[],0.5],["mul",[0,23]],["sub",[22,24]],["cos",[25]],["mul",[26,23]],["const",[],4],["mul",[5,28]],["const",[],0.2],["mul",[0,30]],["sub",[29,31]],["sin",[32]],["mul",[33,23]],["div",[1,2]],["const",[],0.05],["mul",[0,36]],["add",[35,37]],["const",[],0.35],["line",[13,20,27,34,38,39]]]},"nebulosa":{"nexo":2,"caps":["draw"],"nodes":[["time",[]],["range",[],1500],["hash",[1]],["const",[],17.3],["add",[1,3]],["hash",[4]],["const",[],51.7],["add",[1,6]],["hash",[7]],["const",[],0.6],["pow",[2,9]],["const",[],0.95],["mul",[10,11]],["const",[],1.2],["sub",[13,12]],["mul",[14,9]],["const",[],6.283185],["mul",[5,16]],["mul",[0,15]],["add",[17,18]],["const",[],4],["mul",[12,20]],["add",[19,21]],["const",[],3],["mul",[0,23]],["const",[],40],["mul",[8,25]],["add",[24,26]],["sin",[27]],["const",[],0.5],["mul",[28,29]],["add",[30,29]],["cos",[22]],["mul",[32,12]],["sin",[22]],["mul",[34,12]],["const",[],0.55],["mul",[35,36]],["const",[],0.006],["mul",[8,38]],["const",[],0.002],["add",[40,39]],["const",[],0.35],["mul",[12,42]],["add",[36,43]],["mul",[31,9]],["const",[],0.15],["add",[46,45]],["circle",[33,37,41,44,47]],["const",[],1.5],["mul",[0,49]],["sin",[50]],["const",[],0.01],["mul",[51,52]],["const",[],0.07],["add",[54,53]],["const",[],0],["const",[],0.08],["circle",[56,56,55,57,42]],["layer",[58,48]]]},"particulas":{"nexo":2,"caps":["draw"],"nodes":[["time",[]],["frame",[]],["dt",[]],["range",[],700],["hash",[3]],["prev",[],69],["prev",[],78],["prev",[],51],["prev",[],60],["const",[],0.5],["lt",[1,9]],["const",[],0.7],["mul",[0,11]],["sin",[12]],["const",[],0.55],["mul",[13,14]],["const",[],1.4],["mul",[0,16]],["sin",[17]],["const",[],0.3],["mul",[18,19]],["sub",[15,5]],["sub",[20,6]],["call",[21,22],0],["const",[],0.12],["add",[23,24]],["const",[],1.5],["mul",[4,26]],["const",[],1.2],["add",[28,27]],["div",[29,25]],["mul",[21,30]],["const",[],-0.35],["mul",[22,32]],["mul",[33,30]],["add",[31,34]],["mul",[22,30]],["const",[],0.35],["mul",[21,37]],["mul",[38,30]],["add",[36,39]],["const",[],3],["add",[3,41]],["hash",[42]],["sub",[43,9]],["const",[],0.6],["mul",[44,45]],["mul",[35,2]],["add",[7,47]],["const",[],0.985],["mul",[48,49]],["select",[10,46,50]],["const",[],9],["add",[3,52]],["hash",[53]],["sub",[54,9]],["mul",[55,45]],["mul",[40,2]],["add",[8,57]],["mul",[58,49]],["select",[10,56,59]],["const",[],2],["mul",[4,61]],["const",[],1],["sub",[62,63]],["const",[],0.9],["mul",[64,65]],["mul",[51,2]],["add",[5,67]],["select",[10,66,68]],["const",[],7.1],["add",[3,70]],["hash",[71]],["mul",[72,61]],["sub",[73,63]],["mul",[74,65]],["mul",[60,2]],["add",[6,76]],["select",[10,75,77]],["call",[51,60],0],["min",[79,26]],["mul",[80,19]],["add",[14,81]],["const",[],10],["mul",[4,83]],["add",[0,84]],["call",[85,61],1],["mul",[86,9]],["add",[19,87]],["const",[],0.006],["circle",[69,78,89,82,88]],["sum",[69]],["count",[69]],["div",[91,92]],["sum",[78]],["count",[78]],["div",[94,95]],["const",[],0.025],["circle",[93,96,97,24,65]],["const",[],0.012],["const",[],0],["circle",[15,20,99,100,45]],["layer",[90,101,98]]],"funcs":[{"nodes":[["arg",[],0],["arg",[],1],["mul",[0,0]],["mul",[1,1]],["add",[2,3]],["sqrt",[4]]]},{"nodes":[["arg",[],0],["arg",[],1],["mul",[0,1]],["sin",[2]],["const",[],0.5],["mul",[3,4]],["add",[5,4]]]}]},"aurora":{"nexo":2,"caps":["draw"],"nodes":[["time",[]],["px",[]],["py",[]],["const",[],0.6],["mul",[0,3]],["const",[],3],["call",[1,5,4],0],["const",[],-0.4],["mul",[0,7]],["const",[],4.3],["call",[2,9,8],0],["mul",[10,3]],["add",[6,11]],["add",[1,2]],["const",[],0.3],["mul",[0,14]],["const",[],2.1],["call",[13,16,15],0],["const",[],0.5],["mul",[17,18]],["add",[12,19]],["mul",[0,18]],["const",[],2],["call",[1,22,21],0],["const",[],0.25],["mul",[23,24]],["sub",[2,25]],["mul",[26,26]],["const",[],-6],["mul",[27,28]],["exp",[29]],["const",[],0.08],["mul",[20,31]],["const",[],0.38],["add",[33,32]],["const",[],0.01],["mul",[0,35]],["add",[34,36]],["fract",[37]],["const",[],0.42],["mul",[30,39]],["const",[],0.04],["add",[41,40]],["const",[],0.03],["mul",[20,43]],["add",[42,44]],["const",[],1],["shade",[38,45,46]],["range",[],400],["mul",[0,22]],["add",[48,22]],["hash",[50]],["const",[],30],["mul",[51,52]],["add",[49,53]],["sin",[54]],["mul",[55,14]],["const",[],0.4],["add",[56,57]],["hash",[48]],["mul",[59,22]],["sub",[60,46]],["const",[],0.37],["add",[48,62]],["hash",[63]],["mul",[64,22]],["sub",[65,46]],["const",[],5],["add",[48,67]],["hash",[68]],["const",[],0.004],["mul",[69,70]],["const",[],0.002],["add",[72,71]],["circle",[61,66,73,3,58]],["layer",[47,74]]],"funcs":[{"nodes":[["arg",[],0],["arg",[],1],["arg",[],2],["mul",[0,1]],["add",[3,2]],["sin",[4]]]}]}},"calc":{"pi":{"nexo":2,"caps":[],"nodes":[["range",[],20000],["hash",[0]],["const",[],2],["mul",[1,2]],["const",[],1],["sub",[3,4]],["hash",[0]],["const",[],1000],["mul",[6,7]],["const",[],0.37],["mul",[0,9]],["add",[8,10]],["hash",[11]],["mul",[12,2]],["sub",[13,4]],["mul",[5,5]],["mul",[14,14]],["add",[15,16]],["lt",[17,4]],["sum",[18]],["count",[18]],["div",[19,20]],["const",[],4],["mul",[21,22]]]},"estadistica":{"nexo":2,"caps":["input"],"nodes":[["input",[],0],["count",[0]],["sum",[0]],["div",[2,1]],["sub",[0,3]],["mul",[4,4]],["sum",[5]],["div",[6,1]],["sqrt",[7]],["vmin",[0]],["vmax",[0]],["pack",[3,8,9,10]]]},"trayectoria":{"nexo":2,"caps":[],"nodes":[["frame",[]],["dt",[]],["const",[],0.5],["lt",[0,2]],["prev",[],33],["prev",[],36],["prev",[],21],["prev",[],29],["prev",[],42],["prev",[],45],["prev",[],47],["mul",[6,6]],["mul",[7,7]],["add",[11,12]],["sqrt",[13]],["mul",[6,14]],["const",[],0.02],["mul",[15,16]],["mul",[17,1]],["sub",[6,18]],["const",[],14.142135623730951],["select",[3,20,19]],["mul",[7,14]],["mul",[22,16]],["const",[],9.81],["add",[24,23]],["mul",[25,1]],["sub",[7,26]],["const",[],14.14213562373095],["select",[3,28,27]],["mul",[21,1]],["add",[4,30]],["const",[],0],["select",[3,32,31]],["mul",[29,1]],["add",[5,34]],["select",[3,32,35]],["lt",[36,32]],["const",[],0.0001],["lt",[8,38]],["mul",[37,39]],["select",[40,33,8]],["select",[3,32,41]],["mul",[0,1]],["select",[40,43,9]],["select",[3,32,44]],["max",[10,36]],["select",[3,32,46]],["pack",[42,45,47]]]}},"datos":{"descripcion":"Datos de ejemplo: temperatura (°C) cada hora durante un día de otoño. Son inventados, sirven para probar el programa estadistica.","valores":[14.2,13.8,13.5,13.1,12.9,12.8,13,13.9,15.4,17.1,18.6,19.8,20.7,21.3,21.6,21.2,20.4,19.1,17.8,16.9,16.1,15.5,15,14.6]},"learn":{"program":{"nexo":2,"caps":["draw","input"],"nodes":[["range",[],120],["const",[],120],["div",[0,1]],["const",[],6.283185],["mul",[2,3]],["input",[],0],["input",[],1],["param",[],0],["param",[],0],["const",[],1],["mul",[4,9]],["cos",[10]],["mul",[4,9]],["sin",[12]],["param",[],0.3],["mul",[14,11]],["param",[],0],["mul",[16,13]],["add",[15,17]],["add",[7,18]],["param",[],0],["mul",[20,11]],["param",[],0.3],["mul",[22,13]],["add",[21,23]],["add",[8,24]],["const",[],2],["mul",[4,26]],["cos",[27]],["mul",[4,26]],["sin",[29]],["param",[],0],["mul",[31,28]],["param",[],0],["mul",[33,30]],["add",[32,34]],["add",[19,35]],["param",[],0],["mul",[37,28]],["param",[],0],["mul",[39,30]],["add",[38,40]],["add",[25,41]],["const",[],3],["mul",[4,43]],["cos",[44]],["mul",[4,43]],["sin",[46]],["param",[],0],["mul",[48,45]],["param",[],0],["mul",[50,47]],["add",[49,51]],["add",[36,52]],["param",[],0],["mul",[54,45]],["param",[],0],["mul",[56,47]],["add",[55,57]],["add",[42,58]],["const",[],4],["mul",[4,60]],["cos",[61]],["mul",[4,60]],["sin",[63]],["param",[],0],["mul",[65,62]],["param",[],0],["mul",[67,64]],["add",[66,68]],["add",[53,69]],["param",[],0],["mul",[71,62]],["param",[],0],["mul",[73,64]],["add",[72,74]],["add",[59,75]],["const",[],5],["mul",[4,77]],["cos",[78]],["mul",[4,77]],["sin",[80]],["param",[],0],["mul",[82,79]],["param",[],0],["mul",[84,81]],["add",[83,85]],["add",[70,86]],["param",[],0],["mul",[88,79]],["param",[],0],["mul",[90,81]],["add",[89,91]],["add",[76,92]],["const",[],6],["mul",[4,94]],["cos",[95]],["mul",[4,94]],["sin",[97]],["param",[],0],["mul",[99,96]],["param",[],0],["mul",[101,98]],["add",[100,102]],["add",[87,103]],["param",[],0],["mul",[105,96]],["param",[],0],["mul",[107,98]],["add",[106,108]],["add",[93,109]],["sub",[104,5]],["sub",[110,6]],["mul",[111,111]],["mul",[112,112]],["add",[113,114]],["sum",[115]],["div",[116,1]],["loss",[117]],["add",[0,9]],["const",[],0.007],["const",[],0.1],["const",[],0.55],["circle",[5,6,120,121,122]],["gather",[104,119]],["gather",[110,119]],["div",[0,1]],["const",[],0.35],["mul",[126,127]],["const",[],0.5],["add",[129,128]],["const",[],0.95],["line",[104,110,124,125,130,131]],["layer",[123,132]]]},"shapes":{"corazon":{"x":[0,0.00011,0.00091,0.00306,0.00719,0.01387,0.02361,0.03682,0.05383,0.07486,0.1,0.12925,0.16246,0.19939,0.23967,0.28284,0.32833,0.37549,0.42361,0.47192,0.51962,0.56589,0.60993,0.65095,0.68819,0.72098,0.74869,0.77081,0.78692,0.79672,0.8,0.79672,0.78692,0.77081,0.74869,0.72098,0.68819,0.65095,0.60993,0.56589,0.51962,0.47192,0.42361,0.37549,0.32833,0.28284,0.23968,0.19939,0.16246,0.12925,0.1,0.07486,0.05383,0.03682,0.02361,0.01387,0.00719,0.00306,0.00091,0.00011,0,-0.00011,-0.00091,-0.00306,-0.00719,-0.01387,-0.02361,-0.03682,-0.05383,-0.07486,-0.1,-0.12925,-0.16246,-0.19939,-0.23967,-0.28284,-0.32833,-0.37549,-0.42361,-0.47192,-0.51962,-0.56589,-0.60993,-0.65095,-0.68819,-0.72098,-0.74869,-0.77081,-0.78692,-0.79672,-0.8,-0.79672,-0.78692,-0.77081,-0.74869,-0.72098,-0.68819,-0.65095,-0.60993,-0.56589,-0.51962,-0.47192,-0.42361,-0.37549,-0.32833,-0.28284,-0.23968,-0.19939,-0.16246,-0.12925,-0.1,-0.07486,-0.05383,-0.03682,-0.02361,-0.01387,-0.00719,-0.00306,-0.00091,-0.00011],"y":[-0.28529,-0.28793,-0.29576,-0.30852,-0.32581,-0.34707,-0.3716,-0.39863,-0.42727,-0.4566,-0.48569,-0.51358,-0.53937,-0.56223,-0.58139,-0.59619,-0.60612,-0.61077,-0.60988,-0.60334,-0.59118,-0.57354,-0.5507,-0.52303,-0.491,-0.45513,-0.41598,-0.37414,-0.33019,-0.28472,-0.23824,-0.19123,-0.14413,-0.09728,-0.05095,-0.00535,0.03937,0.08316,0.12598,0.16785,0.20882,0.24896,0.28832,0.32694,0.36487,0.40208,0.43852,0.47409,0.50865,0.54201,0.57392,0.60412,0.63231,0.65818,0.6814,0.70167,0.71869,0.73222,0.74204,0.748,0.75,0.748,0.74204,0.73222,0.71869,0.70167,0.6814,0.65818,0.63231,0.60412,0.57392,0.54201,0.50865,0.47409,0.43852,0.40208,0.36487,0.32694,0.28832,0.24896,0.20882,0.16785,0.12598,0.08316,0.03937,-0.00535,-0.05095,-0.09728,-0.14413,-0.19123,-0.23824,-0.28472,-0.33019,-0.37414,-0.41598,-0.45513,-0.491,-0.52303,-0.5507,-0.57354,-0.59118,-0.60334,-0.60988,-0.61077,-0.60612,-0.59619,-0.58139,-0.56223,-0.53937,-0.51358,-0.48569,-0.4566,-0.42727,-0.39863,-0.3716,-0.34707,-0.32581,-0.30852,-0.29576,-0.28793]},"estrella":{"x":[0,0.01714,0.03429,0.05143,0.06857,0.08572,0.10286,0.12001,0.13715,0.15429,0.17144,0.18858,0.20572,0.25595,0.30617,0.35639,0.40662,0.45684,0.50706,0.55728,0.60751,0.65773,0.70795,0.75818,0.8084,0.76877,0.72914,0.68952,0.64989,0.61026,0.57063,0.53101,0.49138,0.45175,0.41212,0.3725,0.33287,0.34677,0.36066,0.37456,0.38845,0.40235,0.41624,0.43014,0.44403,0.45793,0.47183,0.48572,0.49962,0.45798,0.41635,0.37471,0.33308,0.29144,0.24981,0.20817,0.16654,0.1249,0.08327,0.04163,0,-0.04163,-0.08327,-0.1249,-0.16654,-0.20817,-0.24981,-0.29144,-0.33308,-0.37471,-0.41635,-0.45798,-0.49962,-0.48572,-0.47183,-0.45793,-0.44403,-0.43014,-0.41624,-0.40235,-0.38845,-0.37456,-0.36066,-0.34677,-0.33287,-0.3725,-0.41212,-0.45175,-0.49138,-0.53101,-0.57063,-0.61026,-0.64989,-0.68952,-0.72914,-0.76877,-0.8084,-0.75818,-0.70795,-0.65773,-0.60751,-0.55728,-0.50706,-0.45684,-0.40662,-0.35639,-0.30617,-0.25595,-0.20572,-0.18858,-0.17144,-0.15429,-0.13715,-0.12001,-0.10286,-0.08572,-0.06858,-0.05143,-0.03429,-0.01714],"y":[-0.85,-0.80276,-0.75553,-0.70829,-0.66105,-0.61381,-0.56658,-0.51934,-0.4721,-0.42487,-0.37763,-0.33039,-0.28316,-0.28145,-0.27974,-0.27803,-0.27633,-0.27462,-0.27291,-0.2712,-0.26949,-0.26779,-0.26608,-0.26437,-0.26266,-0.23176,-0.20086,-0.16996,-0.13906,-0.10816,-0.07725,-0.04635,-0.01545,0.01545,0.04635,0.07725,0.10816,0.15645,0.20474,0.25303,0.30133,0.34962,0.39791,0.4462,0.49449,0.54279,0.59108,0.63937,0.68766,0.65953,0.63139,0.60325,0.57511,0.54697,0.51883,0.49069,0.46255,0.43442,0.40628,0.37814,0.35,0.37814,0.40628,0.43442,0.46255,0.49069,0.51883,0.54697,0.57511,0.60325,0.63139,0.65953,0.68766,0.63937,0.59108,0.54279,0.4945,0.4462,0.39791,0.34962,0.30133,0.25303,0.20474,0.15645,0.10816,0.07725,0.04635,0.01545,-0.01545,-0.04635,-0.07725,-0.10816,-0.13906,-0.16996,-0.20086,-0.23176,-0.26266,-0.26437,-0.26608,-0.26779,-0.26949,-0.2712,-0.27291,-0.27462,-0.27633,-0.27803,-0.27974,-0.28145,-0.28316,-0.33039,-0.37763,-0.42487,-0.4721,-0.51934,-0.56658,-0.61381,-0.66105,-0.70829,-0.75553,-0.80276]},"infinito":{"x":[0.85,0.84652,0.83621,0.81948,0.79697,0.76949,0.73793,0.70323,0.66629,0.62793,0.5889,0.54979,0.51109,0.47318,0.43632,0.40069,0.36641,0.3335,0.30197,0.27178,0.24286,0.21511,0.18845,0.16276,0.13792,0.11381,0.09031,0.06731,0.04467,0.02227,0,-0.02227,-0.04467,-0.06731,-0.09031,-0.11381,-0.13792,-0.16276,-0.18845,-0.21511,-0.24286,-0.27178,-0.30197,-0.3335,-0.36641,-0.40069,-0.43632,-0.47318,-0.51109,-0.54979,-0.5889,-0.62793,-0.66629,-0.70323,-0.73793,-0.76949,-0.79697,-0.81948,-0.83621,-0.84652,-0.85,-0.84652,-0.83621,-0.81948,-0.79697,-0.76949,-0.73793,-0.70323,-0.66629,-0.62793,-0.5889,-0.54979,-0.51109,-0.47318,-0.43632,-0.40069,-0.36641,-0.3335,-0.30197,-0.27178,-0.24286,-0.21511,-0.18845,-0.16276,-0.13792,-0.11381,-0.09031,-0.06731,-0.04467,-0.02227,0,0.02227,0.04467,0.06731,0.09031,0.11381,0.13792,0.16276,0.18845,0.21511,0.24286,0.27178,0.30197,0.3335,0.36641,0.40069,0.43632,0.47318,0.51109,0.54979,0.5889,0.62793,0.66629,0.70323,0.73793,0.76949,0.79697,0.81948,0.83621,0.84652],"y":[0,0.0443,0.08741,0.1282,0.1657,0.19916,0.22803,0.25201,0.271,0.28508,0.29445,0.29943,0.30041,0.29778,0.29195,0.28333,0.27229,0.25918,0.2443,0.22793,0.21032,0.19167,0.17216,0.15195,0.13117,0.10993,0.08834,0.06648,0.04442,0.02224,0,-0.02224,-0.04442,-0.06648,-0.08834,-0.10993,-0.13117,-0.15195,-0.17216,-0.19167,-0.21032,-0.22793,-0.2443,-0.25918,-0.27229,-0.28333,-0.29195,-0.29778,-0.30041,-0.29943,-0.29445,-0.28508,-0.271,-0.25201,-0.22803,-0.19916,-0.1657,-0.1282,-0.08741,-0.0443,0,0.0443,0.08741,0.12819,0.1657,0.19916,0.22803,0.25201,0.271,0.28508,0.29445,0.29943,0.30041,0.29778,0.29195,0.28333,0.27229,0.25918,0.2443,0.22793,0.21032,0.19167,0.17216,0.15195,0.13117,0.10993,0.08834,0.06648,0.04442,0.02224,0,-0.02224,-0.04442,-0.06648,-0.08834,-0.10993,-0.13117,-0.15195,-0.17216,-0.19167,-0.21032,-0.22793,-0.2443,-0.25918,-0.27229,-0.28333,-0.29195,-0.29778,-0.30041,-0.29943,-0.29445,-0.28508,-0.271,-0.25201,-0.22803,-0.19916,-0.1657,-0.1282,-0.08741,-0.0443]}}}};
 (function () {
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
   const $ = (id) => document.getElementById(id);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let current = 'girasol', prog, compiled, scaffold = false, t0 = performance.now();
+  const field = Nexo.createFieldRenderer(0.5);
+  const VIS = BUNDLE.visual;
+  const NAMES = { girasol: 'Girasol', hilos: 'Hilos', nebulosa: 'Nebulosa', particulas: 'Partículas', aurora: 'Aurora' };
+  let current, base, prog, compiled, scaffold = false;
+  let t0 = performance.now(), lastNow = t0;
 
-  const names = { girasol: 'Girasol', hilos: 'Hilos', nebulosa: 'Nebulosa' };
-  Object.keys(EXAMPLES).forEach((k) => {
+  Object.keys(VIS).forEach((k) => {
     const b = document.createElement('button');
-    b.textContent = names[k] || k; b.id = 'p-' + k;
-    b.onclick = () => load(k);
+    b.textContent = NAMES[k] || k; b.id = 'p-' + k;
+    b.onclick = () => { setLog('Programa ' + (NAMES[k] || k) + ' cargado.'); load(k, VIS[k], true); };
     $('progs').appendChild(b);
   });
 
-  function load(k, p) {
-    current = k;
-    prog = p || JSON.parse(JSON.stringify(EXAMPLES[k]));
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  function setLog(msg, isBad) { $('log').className = isBad ? 'log bad' : 'log'; $('log').textContent = msg; }
+
+  function load(key, p, isBase) {
+    current = key;
+    prog = clone(p);
+    if (isBase) base = clone(p);
     compiled = Nexo.compile(prog);
-    document.querySelectorAll('#progs button').forEach((b) => b.setAttribute('aria-pressed', b.id === 'p-' + k));
+    t0 = performance.now();
+    document.querySelectorAll('#progs button').forEach((b) => b.setAttribute('aria-pressed', b.id === 'p-' + key));
+    $('badge').textContent = key === 'evo' ? 'escrito por la IA' : (prog.funcs ? prog.funcs.length + ' funciones' : '');
+    if (key === 'aurora' && !field) $('badge').textContent = 'sin WebGL: solo estrellas';
     show();
     if (reduce) draw(performance.now());
   }
 
   function show() {
-    const bytes = Nexo.encode(prog), plan = compiled.plan;
-    $('sNodes').textContent = prog.nodes.length;
+    const plan = compiled.plan, enc = Nexo.encodeMap(prog), bytes = enc.bytes;
+    $('sNodes').textContent = plan.flat.length;
     $('sLevels').textContent = plan.levels;
     $('sStatic').textContent = plan.staticCount;
     $('sBytes').textContent = bytes.length;
     const view = $('view');
     if (scaffold) {
       $('viewTitle').textContent = 'Andamio humano';
-      $('viewNote').textContent = 'La misma información, desplegada para que una persona pueda depurar. Se quita cuando el núcleo sea sólido.';
+      $('viewNote').textContent = 'El grafo con las funciones ya expandidas. Columnas: nivel, forma (s escalar, v vector, p píxel, d dibujo), dinámico (~) y operación.';
       view.className = '';
-      view.textContent = prog.nodes.map((n, i) => {
+      view.textContent = plan.flat.map((n, i) => {
         const ins = n[1].length ? '(' + n[1].map((r) => '#' + r).join(', ') + ')' : '';
-        const c = n.length > 2 ? ' ' + +n[2].toFixed(4) : '';
-        const lv = ' '.repeat(Math.max(0, 4 - String(i).length));
-        return `#${i}${lv}L${plan.level[i]} ${plan.dyn[i] ? '~' : '·'} ${n[0]}${ins}${c}`;
+        const c = n.length > 2 ? ' ' + +(+n[2]).toFixed(4) : '';
+        return `#${String(i).padEnd(4)}L${String(plan.level[i]).padEnd(3)}${plan.shape[i]} ${plan.dyn[i] ? '~' : '·'} ${n[0]}${ins}${c}`;
       }).join('\n');
     } else {
       $('viewTitle').textContent = 'Lo que ve la IA';
-      $('viewNote').textContent = 'El programa completo, tal cual se transmite. Cada byte ámbar es una operación; el resto son referencias hacia atrás y constantes.';
+      $('viewNote').textContent = 'El programa completo tal cual se transmite. Cada byte ámbar es una operación; el resto son referencias hacia atrás y constantes.';
       view.className = 'hex';
-      // marca los bytes de opcode recorriendo el formato
-      const opAt = new Set(); let p = 4;
-      const vi = () => { let b; do { b = bytes[p++]; } while (b & 128); };
-      vi();
-      prog.nodes.forEach((n) => {
-        const op = Nexo.OPS.findIndex((o) => o[0] === n[0]);
-        opAt.add(p); p++;
-        if (Nexo.OPS[op][1] < 0) vi();
-        n[1].forEach(vi);
-        if (Nexo.OPS[op][3]) p += 4;
-      });
+      const opAt = new Set(enc.opAt);
       let html = '';
       bytes.forEach((b, i) => {
         const h = b.toString(16).padStart(2, '0');
@@ -382,40 +1673,251 @@ const EXAMPLES = {"girasol":{"nexo":1,"caps":["draw"],"nodes":[["time",[]],["ran
   }
 
   function mutate() {
-    const p = JSON.parse(JSON.stringify(prog));
-    const consts = p.nodes.map((n, i) => (n[0] === 'const' ? i : -1)).filter((i) => i >= 0);
+    const p = clone(prog);
+    const bodies = [p.nodes, ...(p.funcs || []).map((f) => f.nodes)];
     let changed = 0;
-    for (const i of consts) if (Math.random() < 0.35) { p.nodes[i][2] *= 0.6 + Math.random() * 0.8; changed++; }
+    for (const nodes of bodies) for (const nd of nodes) if (nd[0] === 'const' && Math.random() < 0.3) { nd[2] *= 0.6 + Math.random() * 0.8; changed++; }
+    const swaps = { sin: 'cos', cos: 'sin', add: 'sub', sub: 'add', min: 'max', max: 'min' };
     if (Math.random() < 0.4) {
-      const swaps = [['sin', 'cos'], ['cos', 'sin'], ['add', 'sub'], ['sub', 'add']];
-      const cand = p.nodes.map((n, i) => i).filter((i) => swaps.some((s) => s[0] === p.nodes[i][0]));
-      if (cand.length) { const i = cand[Math.floor(Math.random() * cand.length)]; p.nodes[i][0] = swaps.find((s) => s[0] === p.nodes[i][0])[1]; changed++; }
+      const cand = [];
+      for (const nodes of bodies) for (const nd of nodes) if (swaps[nd[0]]) cand.push(nd);
+      if (cand.length) { const nd = cand[Math.floor(Math.random() * cand.length)]; nd[0] = swaps[nd[0]]; changed++; }
     }
     const v = Nexo.verify(p);
-    if (!v.ok) { $('log').className = 'log bad'; $('log').textContent = 'Mutación rechazada por el verificador: ' + v.errors[0]; return; }
-    $('log').className = 'log';
-    $('log').textContent = `Mutación aceptada: ${changed} cambios, verificada en el acto.`;
-    load(current, p);
+    if (!v.ok) { setLog('Mutación rechazada por el verificador: ' + v.errors[0], true); return; }
+    setLog(`Mutación aceptada: ${changed} cambios, verificada en el acto.`);
+    load(current, p, false);
   }
 
   $('mutate').onclick = mutate;
-  $('restore').onclick = () => { $('log').className = 'log'; $('log').textContent = 'Programa original restaurado.'; load(current); };
+  $('restore').onclick = () => { setLog('Programa original restaurado.'); load(current, base, false); };
   $('scaffold').onclick = () => { scaffold = !scaffold; $('scaffold').setAttribute('aria-pressed', scaffold); show(); };
 
+  // ---------- evolución ----------
+  let evo, evoTimer = null, evoSeed = 1, lastBest = 0;
+  const thumbs = [];
+  for (let k = 0; k < 4; k++) {
+    const b = document.createElement('button');
+    const c = document.createElement('canvas'); c.width = c.height = 240;
+    const s = document.createElement('span');
+    b.append(c, s); b.setAttribute('aria-label', 'Cargar programa evolucionado ' + (k + 1));
+    b.onclick = () => {
+      if (!evo) return;
+      const ind = shown[k];
+      if (!ind) return;
+      thumbs.forEach((t) => t.b.setAttribute('aria-pressed', t === thumbs[k]));
+      setLog(`Programa evolucionado nº ${k + 1} (nota ${ind.s}) cargado en el lienzo.`);
+      load('evo', NexoEvolve.toProgram(ind.g), true);
+    };
+    $('thumbs').appendChild(b);
+    thumbs.push({ b, c, s });
+  }
+  let shown = [];
+  function drawThumbs() {
+    shown = evo.distinct(4);
+    thumbs.forEach((t, k) => { t.b.hidden = !shown[k]; });
+    shown.forEach((ind, k) => {
+      const { c, s } = thumbs[k], x = c.getContext('2d');
+      x.globalCompositeOperation = 'source-over';
+      x.fillStyle = '#05060c'; x.fillRect(0, 0, c.width, c.height);
+      x.globalCompositeOperation = 'lighter';
+      try { Nexo.render(x, Nexo.compile(NexoEvolve.toProgram(ind.g)).frame(1), c.width, c.height); } catch (e) {}
+      s.textContent = ind.s.toFixed(2);
+    });
+  }
+  function newPopulation() {
+    evo = NexoEvolve.create({ seed: evoSeed++ });
+    lastBest = evo.best().s;
+    $('evoGen').textContent = 0;
+    $('evoScore').textContent = lastBest.toFixed(3);
+    $('evoScore').className = '';
+    drawThumbs();
+  }
+  function evoTick() {
+    const r = evo.step();
+    $('evoGen').textContent = r.generation;
+    $('evoScore').textContent = r.score.toFixed(3);
+    $('evoScore').className = r.score > lastBest ? 'up' : '';
+    if (r.score > lastBest) {
+      lastBest = r.score;
+      load('evo', NexoEvolve.toProgram(r.best.g), true);
+      thumbs.forEach((t, k) => t.b.setAttribute('aria-pressed', k === 0));
+      setLog(`Generación ${r.generation}: la IA ha encontrado un programa mejor (nota ${r.score}).`);
+    }
+    drawThumbs();
+    if (r.generation >= 60) stopEvo(); else evoTimer = setTimeout(evoTick, 30);
+  }
+  function stopEvo() { clearTimeout(evoTimer); evoTimer = null; $('evoRun').textContent = 'Evolucionar'; }
+  $('evoRun').onclick = () => {
+    if (evoTimer) return stopEvo();
+    if (evo.generation >= 60) newPopulation();
+    $('evoRun').textContent = 'Pausar';
+    evoTick();
+  };
+  $('evoNew').onclick = () => { stopEvo(); newPopulation(); setLog('Nueva población aleatoria creada. Pulsa Evolucionar.'); };
+  newPopulation();
+
+  // ---------- programas que aprenden ----------
+  const LEARN = BUNDLE.learn;
+  const SHAPE_NAMES = { corazon: 'Corazón', estrella: 'Estrella', infinito: 'Infinito' };
+  const lc = $('lc'), lctx = lc.getContext('2d'), spark = $('lSpark'), sctx2 = spark.getContext('2d');
+  let shape = 'corazon', learner = null, lHistory = [], lTimer = null, lProgram = LEARN.program;
+  Object.keys(LEARN.shapes).forEach((k) => {
+    const b = document.createElement('button');
+    b.textContent = SHAPE_NAMES[k] || k; b.id = 's-' + k;
+    b.onclick = () => { shape = k; makeLearner(learner ? learner.program() : lProgram); drawLearn(); };
+    $('shapes').appendChild(b);
+  });
+  function makeLearner(prog) {
+    const d = LEARN.shapes[shape];
+    learner = Nexo.createLearner(prog, { inputs: [d.x, d.y], lr: 0.01 });
+    document.querySelectorAll('#shapes button').forEach((b) => b.setAttribute('aria-pressed', b.id === 's-' + shape));
+  }
+  function drawLearn() {
+    const out = learner.compiled.frame(0);
+    const loss = learner.compiled.lossValue();
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.fillStyle = '#05060c'; lctx.fillRect(0, 0, lc.width, lc.height);
+    lctx.lineWidth = 3;
+    Nexo.render(lctx, out, lc.width, lc.height);
+    $('lStep').textContent = lHistory.length;
+    $('lLoss').textContent = loss.toExponential(2).replace('.', ',');
+    // Error en escala logarítmica
+    const css = getComputedStyle(document.documentElement);
+    const W = spark.width, H = spark.height;
+    sctx2.clearRect(0, 0, W, H);
+    if (lHistory.length > 1) {
+      const logs = lHistory.map((v) => Math.log10(Math.max(v, 1e-14)));
+      const hi = Math.max(...logs), lo = Math.min(...logs, hi - 1);
+      sctx2.strokeStyle = css.getPropertyValue('--amber').trim();
+      sctx2.lineWidth = 3;
+      sctx2.beginPath();
+      logs.forEach((v, k) => {
+        const x = 8 + (k / (logs.length - 1)) * (W - 16), y = 10 + ((hi - v) / (hi - lo)) * (H - 20);
+        k ? sctx2.lineTo(x, y) : sctx2.moveTo(x, y);
+      });
+      sctx2.stroke();
+    }
+  }
+  function learnTick() {
+    for (let k = 0; k < 2; k++) lHistory.push(learner.step());
+    drawLearn();
+    const last = lHistory[lHistory.length - 1];
+    if (last < 1e-9 || lHistory.length >= 1500) return stopLearn();
+    lTimer = requestAnimationFrame(learnTick);
+  }
+  function stopLearn() { cancelAnimationFrame(lTimer); lTimer = null; $('lRun').textContent = 'Aprender'; }
+  $('lRun').onclick = () => {
+    if (lTimer) return stopLearn();
+    if (lHistory.length >= 1500 || lHistory[lHistory.length - 1] < 1e-9) lHistory = [];
+    $('lRun').textContent = 'Pausar';
+    learnTick();
+  };
+  $('lReset').onclick = () => { stopLearn(); lHistory = []; makeLearner(LEARN.program); drawLearn(); };
+  makeLearner(LEARN.program);
+  drawLearn();
+
+  // ---------- descubre la fórmula ----------
+  const sc = $('sc'), sctx = sc.getContext('2d');
+  const hash = (a) => { const v = Math.sin(a * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
+  const SX = Array.from({ length: 60 }, (_, k) => -3 + (6 * k) / 59);
+  const SY = SX.map((x, k) => 2.5 * Math.sin(1.3 * x) + 0.4 * x + (hash(k) - 0.5) * 0.1);
+  const DENSE = Array.from({ length: 241 }, (_, k) => -3 + (6 * k) / 240);
+  let synth = null, sTimer = null, sSeed = 1, sCurve = null;
+  function plotSynth() {
+    const W = sc.width, H = sc.height, css = getComputedStyle(document.documentElement);
+    const X = (x) => 40 + ((x + 3) / 6) * (W - 60), Y = (y) => H / 2 - (y / 4.5) * (H / 2 - 30);
+    sctx.fillStyle = '#05060c'; sctx.fillRect(0, 0, W, H);
+    sctx.strokeStyle = css.getPropertyValue('--line').trim(); sctx.lineWidth = 1.5;
+    sctx.font = '20px ' + css.getPropertyValue('--mono'); sctx.fillStyle = css.getPropertyValue('--muted').trim();
+    for (const gx of [-3, -2, -1, 0, 1, 2, 3]) { sctx.beginPath(); sctx.moveTo(X(gx), 20); sctx.lineTo(X(gx), H - 30); sctx.stroke(); sctx.fillText(String(gx), X(gx) - 6, H - 6); }
+    for (const gy of [-4, -2, 0, 2, 4]) { sctx.beginPath(); sctx.moveTo(40, Y(gy)); sctx.lineTo(W - 20, Y(gy)); sctx.stroke(); sctx.fillText(String(gy), 4, Y(gy) + 6); }
+    sctx.fillStyle = css.getPropertyValue('--fg').trim();
+    SX.forEach((x, k) => { sctx.beginPath(); sctx.arc(X(x), Y(SY[k]), 5, 0, 6.2832); sctx.fill(); });
+    if (sCurve) {
+      sctx.strokeStyle = css.getPropertyValue(synth && !sTimer ? '--good' : '--amber').trim(); sctx.lineWidth = 4;
+      sctx.beginPath();
+      DENSE.forEach((x, k) => { const y = Math.max(-6, Math.min(6, sCurve[k])); k ? sctx.lineTo(X(x), Y(y)) : sctx.moveTo(X(x), Y(y)); });
+      sctx.stroke();
+    }
+  }
+  const curveOf = (tree) => {
+    try { return Nexo.compile(NexoSynth.toProgram(tree), { inputs: [DENSE, DENSE.map(() => 0)] }).frame(0); } catch (e) { return null; }
+  };
+  function synthTick() {
+    const b = synth.step(), sc0 = synth.score();
+    $('sGen').textContent = b.generation;
+    $('sErr').textContent = b.mse.toExponential(2).replace('.', ',');
+    $('sFound').textContent = 'y = ' + b.formula;
+    sCurve = curveOf(b.tree);
+    if (sc0 < synth._best - 1e-9) { synth._best = sc0; synth._since = 0; } else synth._since++;
+    if (synth._since >= 25 || b.generation >= 80) {
+      const f = synth.finish();
+      sTimer = null;
+      $('sFound').textContent = 'y = ' + f.formula;
+      $('sFound').className = 'formula done';
+      $('sErr').textContent = f.mse.toExponential(2).replace('.', ',');
+      sCurve = curveOf(f.tree);
+      $('sRun').textContent = 'Buscar otra vez';
+      $('sRun').disabled = false;
+      plotSynth();
+      return;
+    }
+    plotSynth();
+    sTimer = setTimeout(synthTick, 0);
+  }
+  $('sRun').onclick = () => {
+    if (sTimer) return;
+    synth = NexoSynth.create({ x: SX, y: SY }, { seed: sSeed++ });
+    synth._best = Infinity; synth._since = 0;
+    $('sFound').className = 'formula';
+    $('sFound').textContent = 'Buscando…';
+    $('sRun').disabled = true;
+    $('sRun').textContent = 'Buscando…';
+    sTimer = setTimeout(synthTick, 30);
+  };
+  plotSynth();
+
+  // ---------- cálculo ----------
+  const fmt = (x, d) => x.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const meta = (p) => `${Nexo.verify(p).flat.length} nodos · ${Nexo.encode(p).length} bytes`;
+  const kv = (el, rows) => { el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join(''); };
+  {
+    const p = BUNDLE.calc.pi, t = performance.now(), v = Nexo.compile(p).frame(0), ms = performance.now() - t;
+    $('piVal').textContent = fmt(v, 4);
+    $('piErr').textContent = `20.000 puntos en ${fmt(ms, 1)} ms. Error: ${fmt(Math.abs(v - Math.PI) / Math.PI * 100, 2)} %.`;
+    $('piMeta').textContent = meta(p);
+  }
+  {
+    const p = BUNDLE.calc.estadistica, d = BUNDLE.datos.valores;
+    const [mean, sd, mn, mx] = Nexo.compile(p, { inputs: [d] }).frame(0);
+    kv($('statKv'), [['media', fmt(mean, 2) + ' °C'], ['desviación', fmt(sd, 2) + ' °C'], ['mínimo', fmt(mn, 1) + ' °C'], ['máximo', fmt(mx, 1) + ' °C']]);
+    $('statData').textContent = 'Entrada (datos de ejemplo, temperatura cada hora): ' + d.join(' · ');
+    $('statMeta').textContent = meta(p);
+  }
+  {
+    const p = BUNDLE.calc.trayectoria;
+    const [range, flight, top] = Nexo.compile(p).run(1200, 0.005);
+    kv($('trajKv'), [['alcance', fmt(range, 1) + ' m'], ['tiempo de vuelo', fmt(flight, 2) + ' s'], ['altura máxima', fmt(top, 1) + ' m']]);
+    $('trajMeta').textContent = meta(p) + ' · 1.200 pasos';
+  }
+
+  // ---------- animación ----------
   let frames = 0, last = performance.now();
   function draw(now) {
-    const t = (now - t0) / 1000;
+    const t = (now - t0) / 1000, dt = Math.min(0.05, Math.max(0.001, (now - lastNow) / 1000));
+    lastNow = now;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'rgba(5,6,12,0.32)';
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineWidth = 1.2;
-    const n = Nexo.render(ctx, compiled.frame(t), cv.width, cv.height);
+    const n = Nexo.render(ctx, compiled.frame(t, dt), cv.width, cv.height, field);
     frames++;
     if (now - last > 500) { $('fps').textContent = `${Math.round(frames * 1000 / (now - last))} fps · ${n} primitivas`; frames = 0; last = now; }
   }
   function loop(now) { draw(now); requestAnimationFrame(loop); }
-  load('girasol');
+  $('p-particulas').click();
   if (!reduce) requestAnimationFrame(loop);
 })();
 </script>

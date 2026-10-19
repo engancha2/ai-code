@@ -9,8 +9,12 @@ const bundle = {
   visual: Object.fromEntries(['girasol', 'hilos', 'nebulosa', 'particulas', 'aurora'].map((n) => [n, json(n)])),
   calc: Object.fromEntries(['pi', 'estadistica', 'trayectoria'].map((n) => [n, json(n)])),
   datos: json('datos'),
+  learn: {
+    program: json('aprende'),
+    shapes: Object.fromEntries(['corazon', 'estrella', 'infinito'].map((n) => { const d = json(n); return [n, { x: d.x, y: d.y }]; })),
+  },
 };
-const code = ['nexo.js', 'builder.js', 'evolve.js'].map((f) => read('src', f)).join('\n');
+const code = ['nexo.js', 'builder.js', 'evolve.js', 'synth.js'].map((f) => read('src', f)).join('\n');
 const html = read('demo', 'template.html')
   .replace('/*__NEXO__*/', () => code)
   .replace('/*__EXAMPLES__*/', () => JSON.stringify(bundle));

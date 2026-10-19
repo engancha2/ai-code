@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.3.0
+
+- Diferenciable de serie: operaciones `param` y `loss`, diferenciación automática en modo inverso y optimizador Adam (`Nexo.learn`, `Nexo.createLearner`).
+- `src/synth.js`: descubre fórmulas a partir de datos combinando evolución de la estructura (en islas) y gradiente de las constantes, con escalado lineal y simplificación algebraica.
+- `src/raster.js`: dibujo en CPU y PNG sin dependencias; los campos de GPU también se evalúan en CPU.
+- `bin/nexo-mcp.js`: servidor MCP con `nexo_spec`, `nexo_verify`, `nexo_run`, `nexo_learn`, `nexo_synthesize` y `nexo_evolve`.
+- Nuevos comandos: `render`, `learn` y `synth`. Las entradas aceptan `archivo.json#clave`.
+- Ejemplo `aprende` y formas objetivo `corazon`, `estrella` e `infinito`.
+- Demo: secciones «Programas que aprenden», «Descubre la fórmula» y «Úsalo desde tu IA».
+
 ## 0.2.0
 
 - Funciones como subgrafos sin recursión, expandidas al compilar.

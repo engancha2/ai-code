@@ -10,7 +10,7 @@ let pass = 0;
 const test = (name, fn) => { fn(); pass++; console.log('ok -', name); };
 const exDir = path.join(__dirname, '..', 'examples');
 const load = (name) => JSON.parse(fs.readFileSync(path.join(exDir, `${name}.json`)));
-const PROGRAMS = ['girasol', 'hilos', 'nebulosa', 'particulas', 'aurora', 'pi', 'estadistica', 'trayectoria'];
+const PROGRAMS = ['girasol', 'hilos', 'nebulosa', 'particulas', 'aurora', 'pi', 'estadistica', 'trayectoria', 'aprende'];
 const bad = (prog, text) => {
   const v = Nexo.verify(prog);
   assert.ok(!v.ok, 'debería rechazarse');
@@ -167,6 +167,102 @@ test('la evolución mejora la nota y produce programas válidos', () => {
   for (let k = 0; k < 20; k++) ev.step();
   assert.ok(ev.best().s > start);
   for (const ind of ev.population.slice(0, 5)) assert.ok(Nexo.verify(Evolve.toProgram(ind.g)).ok);
+});
+
+// --- aprendizaje (v0.3) ---
+test('los gradientes coinciden con diferencias finitas', () => {
+  const g = graph([]);
+  const p = [0.7, -1.3, 0.4, 2.1, 0.9].map((v) => g.param(v));
+  const i = g.range(7), x = g.sub(g.div(i, 3), 1);
+  const a = g.add(g.mul(p[0], g.sin(g.mul(p[1], x))), g.mul(p[2], g.cos(x)));
+  const b = g.div(g.exp(g.mul(p[3], 0.3)), g.add(g.abs(p[4]), 1));
+  const c = g.mix(a, g.sqrt(g.add(g.mul(x, x), p[2])), g.atan2(p[0], p[4]));
+  const d = g.select(g.gt(x, 0), g.mul(c, b), g.pow(g.add(c, 3), p[4]));
+  const e = g.add(g.scan(d), g.gather(g.mul(a, p[3]), g.add(i, 2)));
+  const f = g.add(g.max(e, g.mul(p[1], 0.5)), g.min(a, b));
+  g.loss(g.add(g.sum(g.mul(f, f)), g.add(g.vmax(e), g.sum(g.pack(g.vmin(a), p[3], g.mod(p[0], 0.5))))));
+  const cp = Nexo.compile(g.build());
+  cp.frame(0);
+  const { grads } = cp.backward();
+  const P = cp.getParams(), h = 1e-6;
+  P.forEach((v, k) => {
+    const at = (dv) => { const q = P.slice(); q[k] += dv; cp.setParams(q); cp.frame(0); return cp.lossValue(); };
+    const num = (at(h) - at(-h)) / (2 * h);
+    assert.ok(Math.abs(num - grads[k]) / Math.max(1, Math.abs(num)) < 1e-5, `param ${k}: ${grads[k]} vs ${num}`);
+  });
+});
+
+test('learn encuentra la recta y = 3x − 1', () => {
+  const g = graph(['input']);
+  const x = g.input(0), y = g.input(1), a = g.param(0), b = g.param(0);
+  const pred = g.add(g.mul(a, x), b), e = g.sub(pred, y);
+  g.loss(g.sum(g.mul(e, e)));
+  g.output(pred);
+  const xs = [0, 1, 2, 3, 4], ys = xs.map((v) => 3 * v - 1);
+  const res = Nexo.learn(g.build(), { inputs: [xs, ys], steps: 2000, lr: 0.1 });
+  const params = res.program.nodes.filter((n) => n[0] === 'param').map((n) => n[2]);
+  assert.ok(Math.abs(params[0] - 3) < 1e-3 && Math.abs(params[1] + 1) < 1e-3, params);
+});
+
+test('el programa aprende a dibujar un corazón', () => {
+  const d = load('corazon');
+  const L = Nexo.createLearner(load('aprende'), { inputs: [d.x, d.y], lr: 0.02 });
+  const start = L.loss();
+  L.step(200);
+  assert.ok(L.loss() < start / 1000 && L.loss() < 1e-6, `${start} → ${L.loss()}`);
+});
+
+test('rechaza param dentro de funciones y loss por píxel', () => {
+  bad({ caps: [], funcs: [{ nodes: [['arg', [], 0], ['param', [], 1], ['add', [0, 1]]] }], nodes: [['const', [], 1], ['call', [0], 0]] }, 'param no está permitido');
+  const g = graph(['draw']);
+  g.loss(g.px());
+  g.circle(0, 0, 0.1, 0, 1);
+  bad(g.build(), 'loss no acepta');
+});
+
+// --- render sin navegador ---
+test('el campo en CPU coincide con la fórmula', () => {
+  const g = graph(['draw']);
+  g.shade(g.mul(g.px(), 0.25), g.add(g.py(), 0.5), 1);
+  const out = Nexo.compile(g.build()).frame(0);
+  const [H, L] = out[0].eval(Float64Array.of(0.4, -0.8), Float64Array.of(0.1, 0.2));
+  assert.deepStrictEqual(Array.from(H), [0.1, -0.2]);
+  assert.ok(Math.abs(L[0] - 0.6) < 1e-12 && Math.abs(L[1] - 0.7) < 1e-12);
+});
+
+test('render PNG sin navegador', () => {
+  const png = require('../src/raster').renderPNG(load('aurora'), { size: 64, t: 1 });
+  assert.deepStrictEqual(Array.from(png.slice(1, 4)), [0x50, 0x4e, 0x47]);
+  assert.strictEqual(png.readUInt32BE(16), 64);
+});
+
+// --- síntesis ---
+test('descubre 1,5·x² − x + 0,5 a partir de datos', () => {
+  const Synth = require('../src/synth');
+  const xs = Array.from({ length: 40 }, (_, k) => -2 + (4 * k) / 39);
+  const res = Synth.synthesize({ x: xs, y: xs.map((x) => 1.5 * x * x - x + 0.5) }, { seed: 1 });
+  assert.ok(res.mse < 1e-6, res.mse);
+  assert.strictEqual(res.formula, '1,5·x² − x + 0,5');
+  assert.ok(Nexo.verify(res.program).ok);
+});
+
+// --- servidor MCP ---
+test('el servidor MCP responde a initialize, tools/list y tools/call', () => {
+  const { spawnSync } = require('child_process');
+  const msgs = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } } },
+    { jsonrpc: '2.0', method: 'notifications/initialized' },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'nexo_run', arguments: { program: load('girasol'), size: 64 } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'nexo_run', arguments: { program: load('pi') } } },
+  ];
+  const r = spawnSync('node', [path.join(__dirname, '..', 'bin', 'nexo-mcp.js')], { input: msgs.map((m) => JSON.stringify(m)).join('\n') + '\n' });
+  const out = r.stdout.toString().trim().split('\n').map((l) => JSON.parse(l));
+  assert.strictEqual(out.length, 4);
+  assert.strictEqual(out[0].result.serverInfo.name, 'nexo');
+  assert.ok(out[1].result.tools.length >= 6);
+  assert.strictEqual(out[2].result.content[1].type, 'image');
+  assert.ok(Math.abs(JSON.parse(out[3].result.content[0].text).result - Math.PI) < 0.05);
 });
 
 console.log(`\n${pass} pruebas superadas`);

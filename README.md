@@ -4,30 +4,55 @@
 
 Los lenguajes actuales están diseñados para que los lean personas. NEXO no.
 Un programa NEXO es un grafo de flujo de datos que viaja en binario: sin
-sintaxis, sin parseo, sin ambigüedad. Las personas entendemos el *proyecto*;
-el *código* es para las máquinas.
+sintaxis, sin parseo, sin ambigüedad. Corre en CPU y GPU, aprende por sí mismo
+y lo pueden usar directamente otras IAs. Las personas entendemos el
+*proyecto*; el *código* es para las máquinas.
 
-> Estado: prototipo v0.2. Gráficos en CPU y GPU, cálculo numérico, simulación
-> con estado y una IA que escribe programas NEXO por evolución.
+> Estado: prototipo v0.3.
 
-## Principios
+## Lo que hace único a NEXO
 
-| Principio | Cómo se consigue |
+| | |
 |---|---|
-| **Sin parseo** | El formato canónico es binario. El orden de los nodos ya es el orden de ejecución. |
-| **Termina siempre** | Un nodo solo usa nodos anteriores; una función solo llama a funciones anteriores (sin recursión). La memoria entre pasos va por un único operador, `prev`. |
-| **Rápido por diseño** | Todo valor es un vector. Lo que no depende del tiempo se precalcula al cargar. Los nodos de un mismo nivel son paralelizables. |
-| **CPU y GPU, un solo lenguaje** | El verificador sabe si cada valor es escalar, vector o píxel. Lo que es por píxel se compila solo a un shader GLSL. |
-| **Seguro por construcción** | No hay strings ejecutables ni `eval`. Un programa solo usa las capacidades que declara (`draw`, `input`). |
-| **Una sola forma** | Cada cálculo tiene una representación. Ideal para que una IA genere, compare y mute programas. |
+| **Sin texto** | El formato canónico es binario. No hay parseo; el orden de los nodos ya es el orden de ejecución. |
+| **Termina siempre** | Un nodo solo usa nodos anteriores; una función solo llama a funciones anteriores. La memoria entre pasos va por un único operador, `prev`. |
+| **Aprende de serie** | Todo programa es diferenciable. Se marcan constantes como `param` y un objetivo como `loss`, y el propio lenguaje calcula los gradientes y se ajusta. |
+| **Lleva su objetivo dentro** | Un programa no solo dice qué calcular, también qué quiere conseguir. |
+| **Descubre fórmulas** | Con unos datos, busca la estructura por evolución y las constantes por gradiente hasta dar con la fórmula. |
+| **CPU y GPU, un solo lenguaje** | El verificador sabe si cada valor es escalar, vector o píxel. Lo que es por píxel se compila solo a GLSL. |
+| **Hecho para que lo usen IAs** | Un servidor MCP deja que Claude u otra IA lean la especificación, escriban programas, los vean como imagen y los hagan aprender. |
+| **Seguro por construcción** | Sin strings ejecutables ni `eval`. Un programa solo usa las capacidades que declara (`draw`, `input`). |
 
-## Qué hay en la v0.2
+## Úsalo desde tu IA (MCP)
 
-- **Lenguaje más potente**: condicionales (`lt`, `gt`, `select`), funciones como subgrafos (`call`/`arg`), reducciones (`sum`, `vmin`, `vmax`, `count`), `scan`, `gather`, `pack` y estado entre fotogramas (`prev`).
-- **GPU**: `px`, `py` y `shade` describen un campo de color píxel a píxel que se traduce a WebGL.
-- **IA que programa sola**: `src/evolve.js` genera programas visuales al azar, los puntúa con criterios estéticos medibles y los evoluciona. En 60 generaciones la nota pasa de unos 0,35 a más de 0,7.
-- **Cálculo general**: π por Montecarlo, estadística sobre datos de entrada y simulación física paso a paso.
-- **Línea de comandos**: `bin/nexo.js` para ejecutar, inspeccionar, convertir y evolucionar programas.
+Con Claude Code:
+
+```bash
+claude mcp add nexo -- node /ruta/a/ai-code/bin/nexo-mcp.js
+```
+
+Con Claude Desktop, en su archivo de configuración:
+
+```json
+{
+  "mcpServers": {
+    "nexo": { "command": "node", "args": ["/ruta/a/ai-code/bin/nexo-mcp.js"] }
+  }
+}
+```
+
+Herramientas que expone:
+
+| Herramienta | Qué hace |
+|---|---|
+| `nexo_spec` | Devuelve la especificación en JSON para que la IA aprenda el lenguaje. |
+| `nexo_verify` | Verifica un programa y devuelve su binario en base64. |
+| `nexo_run` | Ejecuta. Si calcula, devuelve números; si dibuja, devuelve un PNG para que la IA lo vea. |
+| `nexo_learn` | Ajusta los `param` minimizando los `loss`. |
+| `nexo_synthesize` | Descubre una fórmula y = f(x) a partir de datos. |
+| `nexo_evolve` | Evoluciona desde cero un programa visual. |
+
+No necesita dependencias: solo Node.js 18 o superior.
 
 ## Ejemplos
 
@@ -38,41 +63,50 @@ el *código* es para las máquinas.
 | `nebulosa` | Disco espiral de 1.500 estrellas | 226 |
 | `particulas` | 700 partículas con memoria que orbitan un atractor | 434 |
 | `aurora` | Aurora calculada en la GPU + estrellas | 322 |
+| `aprende` | Curva de 26 coeficientes que aprende a calcar una forma | 489 |
 | `pi` | π con 20.000 puntos aleatorios | 85 |
 | `estadistica` | Media, desviación, mínimo y máximo de unos datos | 41 |
 | `trayectoria` | Tiro parabólico con rozamiento del aire | 187 |
 
-## Uso rápido
+## Línea de comandos
 
 ```bash
-npm test                     # 24 pruebas
-npm run examples             # regenera los ejemplos (.json y .nx)
-npm run demo                 # empaqueta la demo en demo/index.html
+npm test                                   # 32 pruebas
+npm run demo                               # empaqueta la demo en demo/index.html
 
 node bin/nexo.js run examples/pi.nx
-node bin/nexo.js run examples/estadistica.nx --input 0=examples/datos.json
-node bin/nexo.js run examples/trayectoria.nx --steps 1200 --dt 0.005
-node bin/nexo.js inspect examples/particulas.nx
+node bin/nexo.js render examples/aurora.nx aurora.png --t 2
+node bin/nexo.js learn examples/aprende.json corazon.nx \
+     --input 0=examples/corazon.json#x --input 1=examples/corazon.json#y
+node bin/nexo.js synth datos.json          # {"x": [...], "y": [...]}
 node bin/nexo.js evolve --gens 60 --seed 3 --out mio.nx
+node bin/nexo.js inspect examples/particulas.nx
 ```
 
-Abre `demo/index.html` en el navegador para verlo todo en marcha.
+## Desde JavaScript
 
 ```js
 const Nexo = require('./src/nexo');
-const prog = Nexo.decode(bytes);                 // binario → grafo
-const c = Nexo.compile(prog, { inputs: [datos] }); // verifica y precalcula
-const salida = c.frame(t, dt);                   // un fotograma o un resultado
-Nexo.render(ctx, salida, w, h, Nexo.createFieldRenderer()); // dibuja (navegador)
+const prog = Nexo.decode(bytes);                    // binario → grafo
+const c = Nexo.compile(prog, { inputs: [datos] });  // verifica y precalcula
+const salida = c.frame(t, dt);                      // un fotograma o un resultado
+
+const { program, loss } = Nexo.learn(prog, { inputs, steps: 300 }); // aprender
+const { formula } = require('./src/synth').synthesize({ x, y });     // descubrir
+const png = require('./src/raster').renderPNG(prog, { t: 1 });       // ver
 ```
 
 ## Estructura
 
 ```
-src/nexo.js        núcleo: operaciones, verificador, binario, intérprete, GLSL
+src/nexo.js        núcleo: operaciones, verificador, binario, intérprete,
+                   diferenciación automática, optimizador y GLSL
 src/builder.js     API para emitir grafos sin escribir texto
-src/evolve.js      la IA que escribe programas NEXO
+src/evolve.js      la IA que escribe programas visuales por evolución
+src/synth.js       descubrimiento de fórmulas (evolución + gradiente)
+src/raster.js      dibujo en CPU y PNG sin dependencias
 bin/nexo.js        línea de comandos
+bin/nexo-mcp.js    servidor MCP para IAs
 examples/          programas de ejemplo y datos
 demo/              demo web autocontenida
 test/              pruebas
@@ -81,12 +115,13 @@ SPEC.md            especificación del formato
 
 ## Hoja de ruta
 
-1. **v0.1** Núcleo visual: vectores, tiempo, círculos y líneas. ✅
+1. **v0.1** Núcleo visual. ✅
 2. **v0.2** Funciones, estado, condicionales, reducciones, GPU, evolución y cálculo. ✅
-3. **v0.3** Backend WASM y ejecución paralela real por niveles.
-4. **v0.4** Un modelo de lenguaje que emite NEXO directamente (sin pasar por texto) y aprende de la nota del verificador.
-5. **v0.5** Capacidades de sistema (archivos, red) con permisos explícitos y revisables.
-6. Que una IA proponga extensiones del propio lenguaje y el verificador las acepte o rechace.
+3. **v0.3** Diferenciable de serie, descubrimiento de fórmulas, dibujo sin navegador y servidor MCP. ✅
+4. **v0.4** Funciones direccionadas por contenido (una huella en lugar de un nombre) y una biblioteca compartida entre IAs.
+5. **v0.5** Backend WASM y ejecución paralela real por niveles.
+6. **v0.6** Capacidades de sistema (archivos, red) con permisos explícitos y revisables.
+7. Que una IA proponga extensiones del propio lenguaje y el verificador las acepte o rechace.
 
 ## Contribuir
 

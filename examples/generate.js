@@ -151,6 +151,50 @@ const programs = {};
   programs.trayectoria = g.build();
 }
 
+// ---------- Aprendizaje ----------
+
+// Formas objetivo (datos de entrada) para el programa `aprende`.
+const N_SHAPE = 120;
+const shapes = {
+  corazon: (t) => [Math.sin(t) ** 3 * 0.8, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 17 * 0.8 - 0.05],
+  estrella: (t) => {
+    const k = (t / TAU) * 10, a = Math.floor(k), f = k - a;
+    const pt = (j) => { const r = j % 2 ? 0.35 : 0.85, ang = (j / 10) * TAU - Math.PI / 2; return [Math.cos(ang) * r, Math.sin(ang) * r]; };
+    const p = pt(a), q = pt(a + 1);
+    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  },
+  infinito: (t) => { const d = 1 + Math.sin(t) ** 2; return [0.85 * Math.cos(t) / d, 0.85 * Math.sin(t) * Math.cos(t) / d]; },
+};
+for (const [name, f] of Object.entries(shapes)) {
+  const pts = Array.from({ length: N_SHAPE }, (_, k) => f((k / N_SHAPE) * TAU));
+  fs.writeFileSync(path.join(__dirname, `${name}.json`), JSON.stringify({
+    descripcion: `Forma objetivo "${name}": ${N_SHAPE} puntos. Entrada 0 = x, entrada 1 = y.`,
+    x: pts.map((p) => +p[0].toFixed(5)), y: pts.map((p) => +p[1].toFixed(5)),
+  }));
+}
+
+// Aprende: una curva cerrada descrita por 26 coeficientes de Fourier (`param`)
+// aprende a calcar la forma que recibe como entrada. El programa contiene su
+// propio objetivo (`loss`): el error cuadrático medio frente a la forma.
+{
+  const g = graph(['draw', 'input']), N = N_SHAPE, K = 6;
+  const i = g.range(N), th = g.mul(g.div(i, N), TAU);
+  const tx = g.input(0), ty = g.input(1);
+  let x = g.param(0), y = g.param(0);
+  for (let k = 1; k <= K; k++) {
+    const ck = g.cos(g.mul(th, k)), sk = g.sin(g.mul(th, k));
+    x = g.add(x, g.add(g.mul(g.param(k === 1 ? 0.3 : 0), ck), g.mul(g.param(0), sk)));
+    y = g.add(y, g.add(g.mul(g.param(0), ck), g.mul(g.param(k === 1 ? 0.3 : 0), sk)));
+  }
+  const dx = g.sub(x, tx), dy = g.sub(y, ty);
+  g.loss(g.div(g.sum(g.add(g.mul(dx, dx), g.mul(dy, dy))), N));
+  const next = g.add(i, 1);
+  const target = g.circle(tx, ty, 0.007, 0.1, 0.55);
+  const curve = g.line(x, y, g.gather(x, next), g.gather(y, next), g.add(0.5, g.mul(g.div(i, N), 0.35)), 0.95);
+  g.layer(target, curve);
+  programs.aprende = g.build();
+}
+
 const dir = __dirname;
 for (const [name, prog] of Object.entries(programs)) {
   const v = Nexo.verify(prog);

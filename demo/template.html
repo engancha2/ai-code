@@ -51,6 +51,8 @@ h2 { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase
 pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px; overflow-x: auto; max-height: 260px; color: var(--fg); }
 .hex .op { color: var(--amber); }
 .log { font: 400 12px var(--mono); color: var(--muted); min-height: 1.6em; }
+.note code { font: 400 12px var(--mono); color: var(--fg); }
+button:disabled { opacity: .55; cursor: progress; }
 .log.bad { color: var(--bad); }
 
 .evo-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
@@ -75,6 +77,16 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
 .meta { font: 400 10.5px var(--mono); color: var(--muted); letter-spacing: .04em; }
 .data { font: 400 10.5px/1.6 var(--mono); color: var(--muted); word-break: break-word; }
 
+.lab { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; align-items: start; }
+@media (max-width: 640px) { .lab { grid-template-columns: 1fr; } }
+.pane { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #05060c; }
+.pane canvas { width: 100%; height: 100%; }
+.side { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.spark { width: 100%; height: 80px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.formula { font: 500 15px/1.5 var(--mono); color: var(--amber); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px; word-break: break-word; min-height: 3em; }
+.formula.done { color: var(--good); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { font: 400 11px var(--mono); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
 .why { display: grid; gap: 14px; }
 .why div { border-top: 1px solid var(--line); padding-top: 12px; }
 .why b { font-family: var(--display); font-weight: 500; font-size: 14px; letter-spacing: .02em; display: block; margin-bottom: 4px; }
@@ -83,8 +95,8 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
 
 <div class="wrap">
   <header>
-    <h1>NEX<span>O</span><small>v0.2</small></h1>
-    <p class="tag">Un lenguaje escrito por IA para IA. Los programas son grafos de flujo de datos en binario: se ejecutan vectorizados en la CPU y, píxel a píxel, en la GPU.</p>
+    <h1>NEX<span>O</span><small>v0.3</small></h1>
+    <p class="tag">Un lenguaje escrito por IA para IA. Los programas son grafos en binario que corren en CPU y GPU, aprenden por sí mismos y descubren fórmulas a partir de datos.</p>
   </header>
 
   <div class="stage">
@@ -122,6 +134,35 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
   </section>
 
   <section>
+    <h2>Programas que aprenden</h2>
+    <p class="note">La curva es un programa NEXO con 26 constantes marcadas como <code>param</code> y un objetivo marcado como <code>loss</code>: parecerse a la forma de puntos. NEXO calcula solo cómo cambia el error con cada constante y las ajusta. Nadie le dice cómo se dibuja un corazón.</p>
+    <div class="lab">
+      <div class="pane"><canvas id="lc" width="640" height="640"></canvas></div>
+      <div class="side">
+        <div class="row" id="shapes"></div>
+        <div class="row"><button id="lRun">Aprender</button><button id="lReset">Reiniciar</button></div>
+        <dl class="kv"><dt>paso</dt><dd id="lStep">0</dd><dt>error</dt><dd id="lLoss">—</dd></dl>
+        <canvas class="spark" id="lSpark" width="520" height="160" aria-label="Evolución del error en escala logarítmica"></canvas>
+        <p class="meta">Error en escala logarítmica. Cambia de forma a mitad de camino y verás la curva transformarse.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Descubre la fórmula</h2>
+    <p class="note">Le damos 60 puntos con algo de ruido y ninguna pista. La IA prueba estructuras por evolución en cuatro poblaciones a la vez y ajusta sus constantes por gradiente hasta dar con la fórmula que explica los datos.</p>
+    <div class="lab">
+      <div class="pane"><canvas id="sc" width="640" height="640"></canvas></div>
+      <div class="side">
+        <div class="row"><button id="sRun">Buscar fórmula</button></div>
+        <dl class="kv"><dt>generación</dt><dd id="sGen">0</dd><dt>error</dt><dd id="sErr">—</dd></dl>
+        <div class="formula" id="sFound">Pulsa «Buscar fórmula». Tarda unos segundos.</div>
+        <p class="meta">Fórmula con la que se generaron los datos, oculta para la IA: y = 2,5·sin(1,3·x) + 0,4·x</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h2>Cálculo general</h2>
     <p class="note">Los mismos grafos resuelven problemas numéricos. Se acaban de ejecutar en tu navegador.</p>
     <div class="calc">
@@ -147,6 +188,13 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
   </section>
 
   <section>
+    <h2>Úsalo desde tu IA</h2>
+    <p class="note">NEXO trae un servidor MCP. Conéctalo a Claude y podrá leer la especificación, escribir programas, verlos como imagen, hacerlos aprender y descubrir fórmulas.</p>
+    <pre>claude mcp add nexo -- node /ruta/a/ai-code/bin/nexo-mcp.js</pre>
+    <div class="chips"><span>nexo_spec</span><span>nexo_verify</span><span>nexo_run</span><span>nexo_learn</span><span>nexo_synthesize</span><span>nexo_evolve</span></div>
+  </section>
+
+  <section>
     <h2 id="viewTitle">Lo que ve la IA</h2>
     <p class="note" id="viewNote"></p>
     <pre id="view" class="hex"></pre>
@@ -157,6 +205,7 @@ pre { margin: 0; font: 400 11.5px/1.7 var(--mono); background: var(--panel); bor
     <div><b>Sin parseo</b><p>No hay sintaxis que analizar. El binario se lee de corrido y el orden de los nodos ya es el orden de ejecución.</p></div>
     <div><b>Termina siempre</b><p>Un nodo solo usa nodos anteriores y una función solo llama a funciones anteriores. No existen los bucles infinitos ni la recursión. La memoria entre fotogramas pasa por un único operador, prev.</p></div>
     <div><b>CPU y GPU con el mismo lenguaje</b><p>El verificador sabe si cada valor es un escalar, un vector o un píxel. Lo que es por píxel se traduce solo a un shader de la GPU.</p></div>
+    <div><b>Aprende de serie</b><p>Todo programa es diferenciable. Basta marcar constantes como param y un objetivo como loss: el propio lenguaje calcula los gradientes y se ajusta. Y la evolución busca la estructura cuando no se conoce.</p></div>
     <div><b>Inyecciones imposibles</b><p>No existen strings ejecutables ni acceso al sistema. Un programa solo toca lo que declara: dibujar o leer los datos que le pasas.</p></div>
   </section>
 </div>
@@ -311,6 +360,127 @@ const BUNDLE = /*__EXAMPLES__*/;
   };
   $('evoNew').onclick = () => { stopEvo(); newPopulation(); setLog('Nueva población aleatoria creada. Pulsa Evolucionar.'); };
   newPopulation();
+
+  // ---------- programas que aprenden ----------
+  const LEARN = BUNDLE.learn;
+  const SHAPE_NAMES = { corazon: 'Corazón', estrella: 'Estrella', infinito: 'Infinito' };
+  const lc = $('lc'), lctx = lc.getContext('2d'), spark = $('lSpark'), sctx2 = spark.getContext('2d');
+  let shape = 'corazon', learner = null, lHistory = [], lTimer = null, lProgram = LEARN.program;
+  Object.keys(LEARN.shapes).forEach((k) => {
+    const b = document.createElement('button');
+    b.textContent = SHAPE_NAMES[k] || k; b.id = 's-' + k;
+    b.onclick = () => { shape = k; makeLearner(learner ? learner.program() : lProgram); drawLearn(); };
+    $('shapes').appendChild(b);
+  });
+  function makeLearner(prog) {
+    const d = LEARN.shapes[shape];
+    learner = Nexo.createLearner(prog, { inputs: [d.x, d.y], lr: 0.01 });
+    document.querySelectorAll('#shapes button').forEach((b) => b.setAttribute('aria-pressed', b.id === 's-' + shape));
+  }
+  function drawLearn() {
+    const out = learner.compiled.frame(0);
+    const loss = learner.compiled.lossValue();
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.fillStyle = '#05060c'; lctx.fillRect(0, 0, lc.width, lc.height);
+    lctx.lineWidth = 3;
+    Nexo.render(lctx, out, lc.width, lc.height);
+    $('lStep').textContent = lHistory.length;
+    $('lLoss').textContent = loss.toExponential(2).replace('.', ',');
+    // Error en escala logarítmica
+    const css = getComputedStyle(document.documentElement);
+    const W = spark.width, H = spark.height;
+    sctx2.clearRect(0, 0, W, H);
+    if (lHistory.length > 1) {
+      const logs = lHistory.map((v) => Math.log10(Math.max(v, 1e-14)));
+      const hi = Math.max(...logs), lo = Math.min(...logs, hi - 1);
+      sctx2.strokeStyle = css.getPropertyValue('--amber').trim();
+      sctx2.lineWidth = 3;
+      sctx2.beginPath();
+      logs.forEach((v, k) => {
+        const x = 8 + (k / (logs.length - 1)) * (W - 16), y = 10 + ((hi - v) / (hi - lo)) * (H - 20);
+        k ? sctx2.lineTo(x, y) : sctx2.moveTo(x, y);
+      });
+      sctx2.stroke();
+    }
+  }
+  function learnTick() {
+    for (let k = 0; k < 2; k++) lHistory.push(learner.step());
+    drawLearn();
+    const last = lHistory[lHistory.length - 1];
+    if (last < 1e-9 || lHistory.length >= 1500) return stopLearn();
+    lTimer = requestAnimationFrame(learnTick);
+  }
+  function stopLearn() { cancelAnimationFrame(lTimer); lTimer = null; $('lRun').textContent = 'Aprender'; }
+  $('lRun').onclick = () => {
+    if (lTimer) return stopLearn();
+    if (lHistory.length >= 1500 || lHistory[lHistory.length - 1] < 1e-9) lHistory = [];
+    $('lRun').textContent = 'Pausar';
+    learnTick();
+  };
+  $('lReset').onclick = () => { stopLearn(); lHistory = []; makeLearner(LEARN.program); drawLearn(); };
+  makeLearner(LEARN.program);
+  drawLearn();
+
+  // ---------- descubre la fórmula ----------
+  const sc = $('sc'), sctx = sc.getContext('2d');
+  const hash = (a) => { const v = Math.sin(a * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
+  const SX = Array.from({ length: 60 }, (_, k) => -3 + (6 * k) / 59);
+  const SY = SX.map((x, k) => 2.5 * Math.sin(1.3 * x) + 0.4 * x + (hash(k) - 0.5) * 0.1);
+  const DENSE = Array.from({ length: 241 }, (_, k) => -3 + (6 * k) / 240);
+  let synth = null, sTimer = null, sSeed = 1, sCurve = null;
+  function plotSynth() {
+    const W = sc.width, H = sc.height, css = getComputedStyle(document.documentElement);
+    const X = (x) => 40 + ((x + 3) / 6) * (W - 60), Y = (y) => H / 2 - (y / 4.5) * (H / 2 - 30);
+    sctx.fillStyle = '#05060c'; sctx.fillRect(0, 0, W, H);
+    sctx.strokeStyle = css.getPropertyValue('--line').trim(); sctx.lineWidth = 1.5;
+    sctx.font = '20px ' + css.getPropertyValue('--mono'); sctx.fillStyle = css.getPropertyValue('--muted').trim();
+    for (const gx of [-3, -2, -1, 0, 1, 2, 3]) { sctx.beginPath(); sctx.moveTo(X(gx), 20); sctx.lineTo(X(gx), H - 30); sctx.stroke(); sctx.fillText(String(gx), X(gx) - 6, H - 6); }
+    for (const gy of [-4, -2, 0, 2, 4]) { sctx.beginPath(); sctx.moveTo(40, Y(gy)); sctx.lineTo(W - 20, Y(gy)); sctx.stroke(); sctx.fillText(String(gy), 4, Y(gy) + 6); }
+    sctx.fillStyle = css.getPropertyValue('--fg').trim();
+    SX.forEach((x, k) => { sctx.beginPath(); sctx.arc(X(x), Y(SY[k]), 5, 0, 6.2832); sctx.fill(); });
+    if (sCurve) {
+      sctx.strokeStyle = css.getPropertyValue(synth && !sTimer ? '--good' : '--amber').trim(); sctx.lineWidth = 4;
+      sctx.beginPath();
+      DENSE.forEach((x, k) => { const y = Math.max(-6, Math.min(6, sCurve[k])); k ? sctx.lineTo(X(x), Y(y)) : sctx.moveTo(X(x), Y(y)); });
+      sctx.stroke();
+    }
+  }
+  const curveOf = (tree) => {
+    try { return Nexo.compile(NexoSynth.toProgram(tree), { inputs: [DENSE, DENSE.map(() => 0)] }).frame(0); } catch (e) { return null; }
+  };
+  function synthTick() {
+    const b = synth.step(), sc0 = synth.score();
+    $('sGen').textContent = b.generation;
+    $('sErr').textContent = b.mse.toExponential(2).replace('.', ',');
+    $('sFound').textContent = 'y = ' + b.formula;
+    sCurve = curveOf(b.tree);
+    if (sc0 < synth._best - 1e-9) { synth._best = sc0; synth._since = 0; } else synth._since++;
+    if (synth._since >= 25 || b.generation >= 80) {
+      const f = synth.finish();
+      sTimer = null;
+      $('sFound').textContent = 'y = ' + f.formula;
+      $('sFound').className = 'formula done';
+      $('sErr').textContent = f.mse.toExponential(2).replace('.', ',');
+      sCurve = curveOf(f.tree);
+      $('sRun').textContent = 'Buscar otra vez';
+      $('sRun').disabled = false;
+      plotSynth();
+      return;
+    }
+    plotSynth();
+    sTimer = setTimeout(synthTick, 0);
+  }
+  $('sRun').onclick = () => {
+    if (sTimer) return;
+    synth = NexoSynth.create({ x: SX, y: SY }, { seed: sSeed++ });
+    synth._best = Infinity; synth._since = 0;
+    $('sFound').className = 'formula';
+    $('sFound').textContent = 'Buscando…';
+    $('sRun').disabled = true;
+    $('sRun').textContent = 'Buscando…';
+    sTimer = setTimeout(synthTick, 30);
+  };
+  plotSynth();
 
   // ---------- cálculo ----------
   const fmt = (x, d) => x.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });

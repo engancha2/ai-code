@@ -16,7 +16,7 @@
   else root.NexoBuilder = factory(root.Nexo);
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (Nexo) {
   'use strict';
-  const SPECIAL = new Set(['const', 'range', 'prev', 'input', 'call', 'arg']);
+  const SPECIAL = new Set(['const', 'range', 'prev', 'input', 'call', 'arg', 'param']);
   const DRAW = new Set(['circle', 'line', 'layer', 'shade']);
 
   function scope(nodes, funcs, isMain) {
@@ -64,7 +64,11 @@
       const r = { __node: true, i };
       if (DRAW.has(nodes[i][0])) node('layer', [r]); else node('add', [r, 0]);
     };
+    // Marca qué valor es la salida del cuerpo (lo coloca como último nodo).
+    g.output = (x) => { g._finish(x); return { __node: true, i: nodes.length - 1 }; };
     if (isMain) {
+      // Constante que el programa puede aprender (ver `loss` y Nexo.learn).
+      g.param = (initial) => node('param', [], initial);
       // Estado: devuelve el valor del fotograma anterior; se fija con .set(nuevo).
       g.state = () => {
         const s = node('prev', [], -1);

@@ -1,4 +1,4 @@
-# Especificación NEXO v0.2
+# Especificación NEXO v0.3
 
 ## Modelo
 
@@ -24,7 +24,7 @@ una lista ordenada de nodos:
 - `call` (entradas = argumentos, constante = índice de función) la invoca.
 - Una función **solo puede llamar a funciones con índice menor**, así que no hay recursión.
 - Al compilar, las llamadas se expanden en línea. La expansión está limitada a 65.536 nodos.
-- `prev` no se permite dentro de funciones.
+- `prev` y `param` no se permiten dentro de funciones.
 
 ## Estado
 
@@ -32,6 +32,14 @@ una lista ordenada de nodos:
 que ese nodo tuvo en el fotograma anterior, o 0 en el primero. Es la única
 referencia que puede apuntar hacia delante. No crea ciclos dentro de un
 fotograma, así que cada paso sigue terminando.
+
+## Aprendizaje
+
+- `param` (constante = valor inicial) es un escalar que el programa puede aprender.
+- `loss` (1 entrada) marca un valor a minimizar; al ejecutarse devuelve su entrada sin cambios. Si es un vector, se minimiza su suma. Si hay varios, se suman.
+- El aprendizaje ejecuta un fotograma, calcula por diferenciación automática (modo inverso) la derivada de la suma de los `loss` respecto a cada `param` y actualiza los `param` con Adam.
+- El gradiente no atraviesa `prev` (cada paso de aprendizaje mira un solo fotograma). `floor`, `hash`, `lt`, `gt` y `count` tienen derivada nula; `select` deriva por la rama elegida; `vmin`/`vmax` por el elemento elegido.
+- El resultado es el mismo programa con los nuevos valores escritos en sus `param`.
 
 ## Formas
 
@@ -42,7 +50,7 @@ fotograma, así que cada paso sigue terminando.
 | `p` | píxel: se evalúa en la GPU, una vez por píxel |
 | `d` | dibujo |
 
-Reglas: no se mezclan `v` y `p`; las reducciones, `scan`, `gather` y `pack` no
+Reglas: no se mezclan `v` y `p`; `loss` no acepta `p`; las reducciones, `scan`, `gather` y `pack` no
 aceptan `p`; `circle` y `line` no aceptan `p`; `shade` no acepta `v`.
 
 ## Operaciones
@@ -67,6 +75,8 @@ aceptan `p`; `circle` y `line` no aceptan `p`; `shade` no acepta `v`.
 | `circle` | 5: x, y, radio, tono, alfa | | capacidad `draw` |
 | `line` | 6: x1, y1, x2, y2, tono, alfa | | capacidad `draw` |
 | `shade` | 3: tono, luz, alfa | | campo de color en la GPU; capacidad `draw` |
+| `param` | 0 | valor inicial | constante aprendible |
+| `loss` | 1 | | objetivo a minimizar |
 | `layer` | n dibujos | | apila dibujos en orden |
 
 Espacio de dibujo: de −1 a 1, origen en el centro, y hacia abajo. Tono en [0,1).

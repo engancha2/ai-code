@@ -72,12 +72,15 @@
     ['px', 0, 'num', false, null],
     ['py', 0, 'num', false, null],
     ['shade', 3, 'draw', false, 'draw'],
+    // v0.3 — aprendizaje
+    ['param', 0, 'num', true, null],  // constante que el programa puede aprender
+    ['loss', 1, 'num', false, null],  // objetivo a minimizar (identidad al ejecutar)
   ];
   const BY_NAME = Object.fromEntries(OPS.map((o, i) => [o[0], i]));
   const CAPS = ['draw', 'input'];
   const VERSION = 2;
   const LIMITS = { nodes: 4096, funcs: 256, flat: 65536, range: 20000, slots: 16, uniforms: 64 };
-  const DYN_SOURCES = new Set(['time', 'frame', 'dt', 'prev']);
+  const DYN_SOURCES = new Set(['time', 'frame', 'dt', 'prev', 'param']);
   const REDUCE = new Set(['sum', 'vmin', 'vmax', 'count']);
 
   // ---------- expansión de funciones ----------
@@ -113,6 +116,7 @@
           else if (!Number.isInteger(nd[2]) || nd[2] < 0 || nd[2] >= LIMITS.slots) e('índice de argumento inválido');
         }
         if (nd[0] === 'prev' && fi !== null) e('prev no está permitido dentro de funciones');
+        if (nd[0] === 'param' && fi !== null) e('param no está permitido dentro de funciones; pásalo como argumento');
       });
     };
     funcs.forEach((f, fi) => checkBody(f && f.nodes, `función ${fi}`, fi));
@@ -218,7 +222,10 @@
       const s = nodes[i][1].map((r) => shape[r]);
       const bad = (m) => shapeErrors.push(`nodo ${i}: ${m}`);
       switch (name) {
-        case 'const': case 'time': case 'frame': case 'dt': shape[i] = 's'; break;
+        case 'const': case 'time': case 'frame': case 'dt': case 'param': shape[i] = 's'; break;
+        case 'loss':
+          if (s[0] === 'p') bad('loss no acepta valores por píxel');
+          shape[i] = s[0] === 'v' ? 'v' : 's'; break;
         case 'range': case 'input': shape[i] = 'v'; break;
         case 'px': case 'py': shape[i] = 'p'; break;
         case 'prev': shape[i] = guess[i] || 's'; break;
@@ -409,18 +416,126 @@
         case 'layer': return a.flat();
         case 'shade': {
           const s = shaders[i];
-          return [{ kind: 'f', src: s.src, u: Float32Array.from(s.uniforms.map((r) => vals[r])) }];
+          const u = Float32Array.from(s.uniforms.map((r) => vals[r]));
+          return [{ kind: 'f', src: s.src, u, eval: (PX, PY) => fieldCPU(i, u, PX, PY) }];
         }
+        case 'param': return paramVals.get(i);
+        case 'loss': return a[0];
         default: return mapN(a, NUM[name]);
       }
     };
+
+    // Evalúa en la CPU el campo de un `shade` para unas coordenadas dadas
+    // (mismo resultado que la GPU; sirve para dibujar sin navegador).
+    const fieldCPU = (root, u, PX, PY) => {
+      const s = shaders[root], local = new Map();
+      const get = (r) => {
+        if (shape[r] === 'p') return local.get(r);
+        if (nodes[r][0] === 'const') return nodes[r][2];
+        return u[s.uidx.get(r)];
+      };
+      for (const j of s.pixelNodes) {
+        const [name, ins] = nodes[j];
+        local.set(j, name === 'px' ? PX : name === 'py' ? PY : mapN(ins.map(get), NUM[name]));
+      }
+      return nodes[root][1].map(get);
+    };
+
+    // Parámetros aprendibles y objetivos.
+    const paramIds = [], lossIds = [];
+    const paramVals = new Map();
+    nodes.forEach((nd, i) => {
+      if (nd[0] === 'param') { paramIds.push(i); paramVals.set(i, nd[2]); }
+      if (nd[0] === 'loss') lossIds.push(i);
+    });
+    // needs[i]: el nodo depende de algún parámetro (solo por ahí fluye el gradiente).
+    const needs = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) needs[i] = nodes[i][0] === 'param' || nodes[i][1].some((r) => needs[r]);
 
     for (let i = 0; i < n; i++) if (!plan.dyn[i] && shape[i] !== 'p') vals[i] = evalNode(i);
     const dynIdx = [];
     for (let i = 0; i < n; i++) if (plan.dyn[i] && shape[i] !== 'p') dynIdx.push(i);
 
+    // ---------- diferenciación automática (modo inverso) ----------
+    function backward() {
+      const G = new Array(n);
+      const acc = (r, c) => {
+        if (!needs[r]) return;
+        const v = vals[r];
+        if (!isArr(v)) { G[r] = (G[r] || 0) + (isArr(c) ? sumArr(c) : c); return; }
+        let cur = G[r];
+        if (!cur) { cur = new Float64Array(v.length); G[r] = cur; }
+        if (isArr(c)) { const m = Math.min(c.length, v.length); for (let k = 0; k < m; k++) cur[k] += c[k]; }
+        else for (let k = 0; k < v.length; k++) cur[k] += c;
+      };
+      let loss = 0;
+      for (const i of lossIds) {
+        const v = vals[i];
+        loss += isArr(v) ? sumArr(v) : v;
+        acc(i, 1);
+      }
+      for (let i = n - 1; i >= 0; i--) {
+        const g = G[i];
+        if (g === undefined || !needs[i]) continue;
+        const [name, ins] = nodes[i];
+        const a = ins.map((r) => vals[r]), out = vals[i];
+        const to = (k, c) => acc(ins[k], c);
+        const M = mapN;
+        switch (name) {
+          case 'add': to(0, g); to(1, g); break;
+          case 'sub': to(0, g); to(1, M([g], (x) => -x)); break;
+          case 'mul': to(0, M([g, a[1]], (x, b) => x * b)); to(1, M([g, a[0]], (x, p) => x * p)); break;
+          case 'div':
+            to(0, M([g, a[1]], (x, b) => (b === 0 ? 0 : x / b)));
+            to(1, M([g, a[0], a[1]], (x, p, b) => (b === 0 ? 0 : (-x * p) / (b * b)))); break;
+          case 'mod': to(0, g); to(1, M([g, a[0], a[1]], (x, p, b) => (b === 0 ? 0 : -x * Math.floor(p / b)))); break;
+          case 'min': to(0, M([g, a[0], a[1]], (x, p, q) => (p <= q ? x : 0))); to(1, M([g, a[0], a[1]], (x, p, q) => (p <= q ? 0 : x))); break;
+          case 'max': to(0, M([g, a[0], a[1]], (x, p, q) => (p >= q ? x : 0))); to(1, M([g, a[0], a[1]], (x, p, q) => (p >= q ? 0 : x))); break;
+          case 'pow':
+            to(0, M([g, a[0], a[1]], (x, p, e) => (p === 0 ? 0 : x * e * Math.pow(Math.abs(p), e - 1) * Math.sign(p))));
+            to(1, M([g, a[0], out], (x, p, o) => (p === 0 ? 0 : x * o * Math.log(Math.abs(p))))); break;
+          case 'sin': to(0, M([g, a[0]], (x, p) => x * Math.cos(p))); break;
+          case 'cos': to(0, M([g, a[0]], (x, p) => -x * Math.sin(p))); break;
+          case 'abs': to(0, M([g, a[0]], (x, p) => x * Math.sign(p))); break;
+          case 'sqrt': to(0, M([g, a[0]], (x, p) => (p === 0 ? 0 : (x * Math.sign(p)) / (2 * Math.sqrt(Math.abs(p)))))); break;
+          case 'exp': to(0, M([g, out], (x, o) => x * o)); break;
+          case 'fract': case 'loss': to(0, g); break;
+          case 'atan2':
+            to(0, M([g, a[0], a[1]], (x, p, q) => { const d = p * p + q * q; return d === 0 ? 0 : (x * q) / d; }));
+            to(1, M([g, a[0], a[1]], (x, p, q) => { const d = p * p + q * q; return d === 0 ? 0 : (-x * p) / d; })); break;
+          case 'select': to(1, M([g, a[0]], (x, c) => (c > 0 ? x : 0))); to(2, M([g, a[0]], (x, c) => (c > 0 ? 0 : x))); break;
+          case 'mix':
+            to(0, M([g, a[2]], (x, t) => x * (1 - t))); to(1, M([g, a[2]], (x, t) => x * t));
+            to(2, M([g, a[0], a[1]], (x, p, q) => x * (q - p))); break;
+          case 'sum': to(0, g); break;
+          case 'vmin': case 'vmax': {
+            if (!isArr(a[0])) { to(0, g); break; }
+            let best = 0;
+            for (let k = 1; k < a[0].length; k++) if (name === 'vmin' ? a[0][k] < a[0][best] : a[0][k] > a[0][best]) best = k;
+            const c = new Float64Array(a[0].length); c[best] = g; to(0, c); break;
+          }
+          case 'scan': {
+            if (!isArr(a[0])) { to(0, g); break; }
+            const c = new Float64Array(a[0].length); let s = 0;
+            for (let k = c.length - 1; k >= 0; k--) { s += at(g, k); c[k] = s; }
+            to(0, c); break;
+          }
+          case 'gather': {
+            const v = a[0];
+            if (!isArr(v)) { to(0, isArr(g) ? sumArr(g) : g); break; }
+            const m = v.length, c = new Float64Array(m), idx = a[1], L = isArr(idx) ? idx.length : 1;
+            if (m) for (let k = 0; k < L; k++) c[((Math.floor(at(idx, k)) % m) + m) % m] += at(g, k);
+            to(0, c); break;
+          }
+          case 'pack': ins.forEach((r, k) => acc(r, at(g, k))); break;
+          default: break; // floor, hash, lt, gt, count y hojas: gradiente nulo
+        }
+      }
+      return { loss, grads: paramIds.map((i) => (G[i] === undefined ? 0 : G[i])) };
+    }
+
     return {
-      plan, shaders,
+      plan, shaders, paramIds, lossIds,
       frame(t, dt = 1 / 60) {
         T = t; DT = dt;
         for (const i of dynIdx) vals[i] = evalNode(i);
@@ -433,7 +548,63 @@
         for (let k = 0; k < steps; k++) out = this.frame(k * dt, dt);
         return out;
       },
+      backward,
+      // Valor actual de los objetivos (tras el último fotograma).
+      lossValue() { let s = 0; for (const i of lossIds) s += isArr(vals[i]) ? sumArr(vals[i]) : vals[i]; return s; },
+      getParams() { return paramIds.map((i) => paramVals.get(i)); },
+      setParams(values) { paramIds.forEach((i, k) => { if (Number.isFinite(values[k])) paramVals.set(i, values[k]); }); },
+      // Devuelve el programa original con los valores aprendidos escritos en sus `param`.
+      exportProgram() {
+        const out = JSON.parse(JSON.stringify(prog));
+        out.nodes.forEach((nd, j) => { if (nd[0] === 'param') nd[2] = Math.fround(paramVals.get(plan.map[j])); });
+        return out;
+      },
     };
+  }
+  const sumArr = (v) => { let s = 0; for (let k = 0; k < v.length; k++) s += v[k]; return s; };
+
+  // ---------- aprendizaje ----------
+  // Optimizador Adam sobre los `param` del programa, minimizando sus `loss`.
+  function createLearner(prog, opts = {}) {
+    const c = compile(prog, opts);
+    if (!c.paramIds.length) throw new Error('el programa no tiene ningún param que aprender');
+    if (!c.lossIds.length) throw new Error('el programa no tiene ningún loss que minimizar');
+    const lr = opts.lr ?? 0.05, b1 = 0.9, b2 = 0.999, eps = 1e-8;
+    const t = opts.t ?? 0, dt = opts.dt ?? 1 / 60;
+    const k = c.paramIds.length, m = new Float64Array(k), v = new Float64Array(k);
+    let stepNo = 0;
+    return {
+      compiled: c,
+      get steps() { return stepNo; },
+      step(times = 1) {
+        let loss = NaN;
+        for (let s = 0; s < times; s++) {
+          c.frame(t, dt);
+          const r = c.backward();
+          loss = r.loss;
+          const p = c.getParams();
+          stepNo++;
+          for (let j = 0; j < k; j++) {
+            const g = r.grads[j];
+            if (!Number.isFinite(g)) continue;
+            m[j] = b1 * m[j] + (1 - b1) * g;
+            v[j] = b2 * v[j] + (1 - b2) * g * g;
+            p[j] -= (lr * (m[j] / (1 - b1 ** stepNo))) / (Math.sqrt(v[j] / (1 - b2 ** stepNo)) + eps);
+          }
+          c.setParams(p);
+        }
+        return loss;
+      },
+      loss() { c.frame(t, dt); return c.lossValue(); },
+      program() { return c.exportProgram(); },
+    };
+  }
+
+  function learn(prog, opts = {}) {
+    const L = createLearner(prog, opts);
+    const steps = opts.steps ?? 300, history = [];
+    for (let s = 0; s < steps; s++) history.push(L.step());
+    return { program: L.program(), loss: L.loss(), history };
   }
 
   // ---------- GPU: campos por píxel → GLSL ----------
@@ -465,8 +636,8 @@
       return `u[${uidx.get(r)}]`;
     };
     const lines = [];
-    for (const i of [...need].sort((a, b) => a - b)) {
-      if (shape[i] !== 'p') continue;
+    const pixelNodes = [...need].sort((a, b) => a - b).filter((i) => shape[i] === 'p');
+    for (const i of pixelNodes) {
       const [name, ins] = nodes[i];
       lines.push(`float n${i}=${GL[name](...ins.map(ref))};`);
     }
@@ -489,7 +660,7 @@
       `gl_FragColor=vec4(hsl(fract(${h}),0.85,clamp(${l},0.0,1.0))*A,A);`,
       '}',
     ].join('\n');
-    return { src, uniforms };
+    return { src, uniforms, uidx, pixelNodes };
   }
 
   // Renderizador WebGL para los campos (solo en navegador).
@@ -586,7 +757,13 @@
     return count;
   }
 
-  const Nexo = { OPS, CAPS, VERSION, LIMITS, expand, verify, encode, encodeMap, decode, compile, glsl, render, createFieldRenderer };
+  // Color HSL → RGB (0..1), la misma fórmula que el shader.
+  function hsl(h, s, l) {
+    const f = (o) => { const k = Math.min(1, Math.max(0, Math.abs(((h * 6 + o) % 6 + 6) % 6 - 3) - 1)); return l + s * (k - 0.5) * (1 - Math.abs(2 * l - 1)); };
+    return [f(0), f(4), f(2)];
+  }
+
+  const Nexo = { OPS, CAPS, VERSION, LIMITS, expand, verify, encode, encodeMap, decode, compile, createLearner, learn, glsl, hsl, render, createFieldRenderer };
   if (typeof module !== 'undefined' && module.exports) module.exports = Nexo;
   else root.Nexo = Nexo;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

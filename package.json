@@ -1,8 +1,9 @@
 {
   "name": "nexo-lang",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Un lenguaje de programación hecho por IA, para IA: grafos de flujo de datos en binario.",
   "main": "src/nexo.js",
+  "bin": { "nexo": "bin/nexo.js" },
   "scripts": {
     "examples": "node examples/generate.js",
     "test": "node test/nexo.test.js",
